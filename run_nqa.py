@@ -19,21 +19,23 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
+BASE_DIR = "./data/narrativeqa/"
+
 ## Required parameters
 flags.DEFINE_string(
-    "data_dir", 
-    "../data/nqa_tf",
+    "data_dir",
+    BASE_DIR+"nqa_tf",
     "The input data dir. Should contain the .tfrecord files and the supporting "
     "query-docids mapping files.")
 
 flags.DEFINE_string(
     "bert_config_file",
-    "../Bert_pretrained_MSMARCO/bert_config.json",
+    "./BERT_LARGE_MSMARCO/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
 flags.DEFINE_string(
-    "output_dir", "../data/output",
+    "output_dir", "./data/output",
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_boolean(
@@ -42,7 +44,7 @@ flags.DEFINE_boolean(
 
 flags.DEFINE_string(
     "init_checkpoint",
-    "../Bert_pretrained_MSMARCO/model.ckpt-100000",
+    "./BERT_LARGE_MSMARCO/model.ckpt-100000",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_integer(
@@ -368,7 +370,6 @@ def main(_):
       max_eval_examples = None
       if FLAGS.max_eval_examples:
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
-      
       print(FLAGS.data_dir + "/dataset_" + set_name + ".tf")
 
       eval_input_fn = input_fn_builder(

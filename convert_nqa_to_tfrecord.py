@@ -15,26 +15,27 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
+BASE_DIR = "./data/narrativeqa/"
 
 flags.DEFINE_string(
     "output_folder", 
-    "../data/nqa_tf",
+    BASE_DIR+"nqa_tf",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
     "vocab_file",
-    "../Bert_pretrained_MSMARCO/vocab.txt",
+    "./BERT_LARGE_MSMARCO/vocab.txt",
     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
     "eval_dataset_path",
-    "../data/tmp/447d97a7439de3811d9b6f4dfd5685e09f5fb727_13135.eval",
+    BASE_DIR+"tmp/447d97a7439de3811d9b6f4dfd5685e09f5fb727_13135.eval",
     "Path to the MSMARCO eval dataset containing the tab separated "
     "<query, positive_paragraph, negative_paragraph> tuples.")
 
 flags.DEFINE_string(
     "dev_qrels_path",
-    "./data/qrels.dev.tsv",
+    BASE_DIR+"qrels.dev.tsv",
     "Path to the query_id relevant doc ids mapping.")
 
 flags.DEFINE_integer(
