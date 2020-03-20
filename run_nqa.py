@@ -22,18 +22,18 @@ FLAGS = flags.FLAGS
 ## Required parameters
 flags.DEFINE_string(
     "data_dir", 
-    "./data/tfrecord/",
+    "../data/nqa_tf",
     "The input data dir. Should contain the .tfrecord files and the supporting "
     "query-docids mapping files.")
 
 flags.DEFINE_string(
     "bert_config_file",
-    "./data/bert/pretrained_models/uncased_L-24_H-1024_A-16/bert_config.json",
+    "../Bert_pretrained_MSMARCO/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
 flags.DEFINE_string(
-    "output_dir", "./data/output",
+    "output_dir", "../data/output",
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_boolean(
@@ -42,7 +42,7 @@ flags.DEFINE_boolean(
 
 flags.DEFINE_string(
     "init_checkpoint",
-    "./data/bert/pretrained_models/uncased_L-24_H-1024_A-16/bert_model.ckpt",
+    "../Bert_pretrained_MSMARCO/model.ckpt-100000",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_integer(
@@ -51,7 +51,7 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
-flags.DEFINE_bool("do_train", True, "Whether to run training.")
+flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", True, "Whether to run eval on the dev set.")
 
@@ -67,7 +67,7 @@ flags.DEFINE_integer("num_train_steps", 400000,
 flags.DEFINE_integer("max_eval_examples", None,
                      "Maximum number of examples to be evaluated.")
 
-flags.DEFINE_integer("num_eval_docs", 1000,
+flags.DEFINE_integer("num_eval_docs", 160,
                      "Number of docs per query in the dev and eval files.")
 
 flags.DEFINE_integer(
@@ -368,6 +368,8 @@ def main(_):
       max_eval_examples = None
       if FLAGS.max_eval_examples:
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
+      
+      print(FLAGS.data_dir + "/dataset_" + set_name + ".tf")
 
       eval_input_fn = input_fn_builder(
           dataset_path=FLAGS.data_dir + "/dataset_" + set_name + ".tf",
@@ -379,7 +381,7 @@ def main(_):
 
       if FLAGS.msmarco_output:
         msmarco_file = tf.gfile.Open(
-            FLAGS.output_dir + "/msmarco_predictions_" + set_name + ".tsv", "w")
+            FLAGS.output_dir + "/nqa_predictions_" + set_name + ".tsv", "w")
         query_docids_map = []
         with tf.gfile.Open(
             FLAGS.data_dir + "/query_doc_ids_" + set_name + ".txt") as ref_file:
@@ -395,7 +397,7 @@ def main(_):
       total_count = 0
       for item in result:
         results.append((item["log_probs"], item["label_ids"]))
-        if total_count % 10000 == 0:
+        if total_count % 10 == 0:
           tf.logging.info("Read {} examples in {} secs".format(
               total_count, int(time.time() - start_time)))
 
@@ -425,7 +427,7 @@ def main(_):
               # has 1000 docs.
               if doc_id != "00000000":
                 msmarco_file.write(
-                    "\t".join((query_id, doc_id, str(rank))) + "\n")
+                    "\t".join((query_id, doc_id, str(rank), str(log_probs[doc_idx, 1]))) + "\n")
                 rank += 1
 
           example_idx += 1
