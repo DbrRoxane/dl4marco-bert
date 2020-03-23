@@ -19,7 +19,7 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-BASE_DIR = "./data/narrativeqa/"
+BASE_DIR = "./narrativeqa/"
 
 ## Required parameters
 flags.DEFINE_string(
