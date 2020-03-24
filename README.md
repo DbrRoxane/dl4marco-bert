@@ -29,17 +29,17 @@ Large model
  `unzip BERT_LARGE_MSMARCO.zip -d BERT_LARGE_MSMARCO`
 
 ## Prepare the data
-Will be in the same foder as the stories, i.e `DATA_DIR/narrativeqa/tmp/`
+Will be in the same foder as the stories, i.e `data/narrativeqa/tmp/`
 
 `python chunk_narrativeqa_stories.py`
 
-`mkdir DATA_DIR/narrativeqa/nqa_tf`
+`mkdir data/narrativeqa/nqa_tf`
 
 We currently test the model on a single question from a movie.
 
 `python convert_nqa_to_tfrecord.py`
 
-`mkdir DATA_DIR/output`
+`mkdir data/output`
 
 ## Run evaluation
 
