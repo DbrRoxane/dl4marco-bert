@@ -18,6 +18,7 @@ if __name__=="__main__":
         for question_idx, question_set in enumerate(csv_reader):
             story_id = question_set[0]
             question_str = question_set[2]
+            answer_1, answer_2 = question_set[3], question_set[4]
             with open("./data/narrativeqa/documents.csv", "r") as doc_file:
                 csv_reader_doc = csv.reader(doc_file, delimiter=',')
                 livre = [row[2]=="gutenberg" for row in csv_reader_doc if row[0]==story_id][0]
@@ -27,8 +28,8 @@ if __name__=="__main__":
                     chunks = chunk_story_paragraphs(story_str.read())
                 with open(story_file + "_" + str(question_idx) + "_book.eval", "w") as writer:
                     for cnt, chunk in enumerate(chunks):
-                        line = "{1}_q{0} \t {1}_p{4} \t {2} \t ({4}) - {3} \n".\
-                                format(question_idx, story_id, question_str, chunk, cnt)
+                        line = "{1}_q{0} \t {1}_p{4} \t {2} \t ({4}) - {3} \t {5} \t {6} \n".\
+                                format(question_idx, story_id, question_str, chunk, cnt, answer1, answer2)
                         writer.write(line)
 
 
