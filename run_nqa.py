@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import os
 import time
+import glob
 
 import numpy as np
 import tensorflow as tf
@@ -35,7 +36,7 @@ flags.DEFINE_string(
     "This specifies the model architecture.")
 
 flags.DEFINE_string(
-    "output_dir", "./data/output",
+    "output_dir", "./data/output/narrative_book_paragraphs/",
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_boolean(
@@ -372,23 +373,24 @@ def main(_):
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
       print(FLAGS.data_dir + "/dataset_" + set_name + ".tf")
 
-      for dataset_path in glob.glob("./data/narrativeqa/nqa_tf/*"):
+      for dataset_path in glob.glob("./data/narrativeqa/nqa_tf/*dataset_eval.tf"):
+        tf_id = dataset_path.split("/")[-1].split(" dataset_eval.tf")[0]
         eval_input_fn = input_fn_builder(
                         dataset_path=dataset_path, #FLAGS.data_dir + "/dataset_" + set_name + ".tf",
                         seq_length=FLAGS.max_seq_length,
                         is_training=False,
                         max_eval_examples=max_eval_examples)
 
-          tf.logging.info("Computing metrics...")
+        tf.logging.info("Computing metrics...")
 
         if FLAGS.msmarco_output:
           msmarco_file = tf.gfile.Open(
-                        FLAGS.output_dir + "/nqa_predictions_" + set_name + ".tsv", "w")
-            query_docids_map = []
-            with tf.gfile.Open(
-                FLAGS.data_dir + "/query_doc_ids_" + set_name + ".txt") as ref_file:
+                        FLAGS.output_dir + "nqa_predictions_" + tf_id + ".tsv", "w")
+          query_docids_map = []
+          with tf.gfile.Open(
+                 "./data/narrativeqa/nqa_tf/"+ tf_id + " query_doc_ids_eval.txt") as ref_file:
             for line in ref_file:
-                query_docids_map.append(line.strip().split("\t"))
+              query_docids_map.append(line.strip().split("\t"))
 
         result = estimator.predict(input_fn=eval_input_fn,
                                  yield_single_examples=True)
@@ -398,13 +400,12 @@ def main(_):
         example_idx = 0
         total_count = 0
         for item in result:
-            results.append((item["log_probs"], item["label_ids"]))
-            if total_count % 10 == 0:
-                tf.logging.info("Read {} examples in {} secs".format(
-                total_count, int(time.time() - start_time)))
+          results.append((item["log_probs"], item["label_ids"]))
+          if total_count % 100 == 0:
+            tf.logging.info("Read {} examples in {} secs in {}".format(
+                total_count, int(time.time() - start_time), tf_id))
 
         if len(results) == FLAGS.num_eval_docs:
-
           log_probs, labels = zip(*results)
           log_probs = np.stack(log_probs).reshape(-1, 2)
           labels = np.stack(labels)
@@ -437,14 +438,14 @@ def main(_):
 
         total_count += 1
 
-      if FLAGS.msmarco_output:
-        msmarco_file.close()
+        if FLAGS.msmarco_output:
+          msmarco_file.close()
 
-      all_metrics /= example_idx
+        all_metrics /= example_idx
 
-      tf.logging.info("Eval {}:".format(set_name))
-      tf.logging.info("  ".join(METRICS_MAP))
-      tf.logging.info(all_metrics)
+        tf.logging.info("Eval {}:".format(set_name))
+        tf.logging.info("  ".join(METRICS_MAP))
+        tf.logging.info(all_metrics)
 
 
 if __name__ == "__main__":

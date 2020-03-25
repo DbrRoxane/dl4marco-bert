@@ -128,10 +128,10 @@ def convert_eval_dataset(set_name, tokenizer, eval_file):
           'Not all queries have {} docs'.format(FLAGS.num_eval_docs))
 
   writer = tf.python_io.TFRecordWriter(
-      FLAGS.output_folder + '/'+ query_ids[queries[0]] +'dataset_' + set_name + '.tf')
+      FLAGS.output_folder + '/'+ query_ids[queries[0]][:-1] +'dataset_' + set_name + '.tf')
 
   query_doc_ids_path = (
-      FLAGS.output_folder + '/'+ query_ids[queries[0]] +'query_doc_ids_' + set_name + '.txt')
+      FLAGS.output_folder + '/'+ query_ids[queries[0]][:-1] +'query_doc_ids_' + set_name + '.txt')
   with open(query_doc_ids_path, 'w') as ids_file:
     for i, (query, doc_ids_docs) in enumerate(queries_docs.items()):
       doc_ids, docs, labels = zip(*doc_ids_docs)
