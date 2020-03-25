@@ -29,7 +29,7 @@ if __name__=="__main__":
                 with open(story_file + "_" + str(question_idx) + "_book.eval", "w") as writer:
                     for cnt, chunk in enumerate(chunks):
                         line = "{1}_q{0} \t {1}_p{4} \t {2} \t ({4}) - {3} \t {5} \t {6} \n".\
-                                format(question_idx, story_id, question_str, chunk, cnt, answer1, answer2)
+                                format(question_idx, story_id, question_str, chunk, cnt, answer_1, answer_2)
                         writer.write(line)
 
 
