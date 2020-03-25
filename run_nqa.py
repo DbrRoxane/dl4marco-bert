@@ -372,35 +372,36 @@ def main(_):
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
       print(FLAGS.data_dir + "/dataset_" + set_name + ".tf")
 
-      eval_input_fn = input_fn_builder(
-          dataset_path=FLAGS.data_dir + "/dataset_" + set_name + ".tf",
-          seq_length=FLAGS.max_seq_length,
-          is_training=False,
-          max_eval_examples=max_eval_examples)
+      for dataset_path in glob.glob("./data/narrativeqa/nqa_tf/*"):
+        eval_input_fn = input_fn_builder(
+                        dataset_path=dataset_path, #FLAGS.data_dir + "/dataset_" + set_name + ".tf",
+                        seq_length=FLAGS.max_seq_length,
+                        is_training=False,
+                        max_eval_examples=max_eval_examples)
 
-      tf.logging.info("Computing metrics...")
+          tf.logging.info("Computing metrics...")
 
-      if FLAGS.msmarco_output:
-        msmarco_file = tf.gfile.Open(
-            FLAGS.output_dir + "/nqa_predictions_" + set_name + ".tsv", "w")
-        query_docids_map = []
-        with tf.gfile.Open(
-            FLAGS.data_dir + "/query_doc_ids_" + set_name + ".txt") as ref_file:
-          for line in ref_file:
-            query_docids_map.append(line.strip().split("\t"))
+        if FLAGS.msmarco_output:
+          msmarco_file = tf.gfile.Open(
+                        FLAGS.output_dir + "/nqa_predictions_" + set_name + ".tsv", "w")
+            query_docids_map = []
+            with tf.gfile.Open(
+                FLAGS.data_dir + "/query_doc_ids_" + set_name + ".txt") as ref_file:
+            for line in ref_file:
+                query_docids_map.append(line.strip().split("\t"))
 
-      result = estimator.predict(input_fn=eval_input_fn,
+        result = estimator.predict(input_fn=eval_input_fn,
                                  yield_single_examples=True)
-      start_time = time.time()
-      results = []
-      all_metrics = np.zeros(len(METRICS_MAP))
-      example_idx = 0
-      total_count = 0
-      for item in result:
-        results.append((item["log_probs"], item["label_ids"]))
-        if total_count % 10 == 0:
-          tf.logging.info("Read {} examples in {} secs".format(
-              total_count, int(time.time() - start_time)))
+        start_time = time.time()
+        results = []
+        all_metrics = np.zeros(len(METRICS_MAP))
+        example_idx = 0
+        total_count = 0
+        for item in result:
+            results.append((item["log_probs"], item["label_ids"]))
+            if total_count % 10 == 0:
+                tf.logging.info("Read {} examples in {} secs".format(
+                total_count, int(time.time() - start_time)))
 
         if len(results) == FLAGS.num_eval_docs:
 

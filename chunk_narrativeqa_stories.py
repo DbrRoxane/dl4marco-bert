@@ -6,7 +6,8 @@ def chunk_story(story_str, chunk_size):
     return textwrap.wrap(re.sub('\s+', ' ',story_str), chunk_size)
 
 def chunk_story_paragraphs(story_str):
-    return story_str.split("\n\n")
+    paragraphs = [re.sub('\s+', ' ',paragraph) for paragraph in story_str.split("\n\n")]
+    return paragraphs
 
 if __name__=="__main__":
     NQA_DIR = "./data/narrativeqa/"
@@ -26,7 +27,7 @@ if __name__=="__main__":
                     chunks = chunk_story_paragraphs(story_str.read())
                 with open(story_file + "_" + str(question_idx) + "_book.eval", "w") as writer:
                     for cnt, chunk in enumerate(chunks):
-                        line = "{0} \t {1}_{4} \t {2} \t ({4}) - {3} \n".\
+                        line = "{1}_q{0} \t {1}_p{4} \t {2} \t ({4}) - {3} \n".\
                                 format(question_idx, story_id, question_str, chunk, cnt)
                         writer.write(line)
 
