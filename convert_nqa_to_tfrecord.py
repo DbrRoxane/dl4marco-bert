@@ -153,8 +153,8 @@ def convert_eval_dataset(set_name, tokenizer, eval_file):
         time_passed = time.time() - start_time
         hours_remaining = (
             len(queries_docs) - i) * time_passed / (max(1.0, i) * 3600)
-        print('Estimated hours remaining to write the {} set: {}'.format(
-            set_name, hours_remaining))
+        #print('Estimated hours remaining to write the {} set: {}'.format(
+        #    set_name, hours_remaining))
   writer.close()
 
 
