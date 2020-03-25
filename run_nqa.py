@@ -70,7 +70,7 @@ flags.DEFINE_integer("num_train_steps", 400000,
 flags.DEFINE_integer("max_eval_examples", None,
                      "Maximum number of examples to be evaluated.")
 
-flags.DEFINE_integer("num_eval_docs", 160,
+flags.DEFINE_integer("num_eval_docs", 2080,
                      "Number of docs per query in the dev and eval files.")
 
 flags.DEFINE_integer(

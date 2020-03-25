@@ -50,7 +50,7 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated.")
 
 flags.DEFINE_integer(
-    "num_eval_docs", 160,
+    "num_eval_docs", 2080,
     "The maximum number of docs per query for dev and eval sets.")
 
 
@@ -107,13 +107,14 @@ def convert_eval_dataset(set_name, tokenizer, eval_file):
   query_ids = {}
   with open(dataset_path, 'r') as f:
     for i, line in enumerate(f):
-      query_id, doc_id, query, doc, _, _ = line.strip().split('\t')
-      label = 0
-      if set_name == 'dev':
-        if '\t'.join([query_id, doc_id]) in relevant_pairs:
-          label = 1
-      queries_docs[query].append((doc_id, doc, label))
-      query_ids[query] = query_id
+      if i <= FLAGS.num_eval_docs:
+        query_id, doc_id, query, doc, _, _ = line.strip().split('\t')
+        label = 0
+        if set_name == 'dev':
+          if '\t'.join([query_id, doc_id]) in relevant_pairs:
+            label = 1
+        queries_docs[query].append((doc_id, doc, label))
+        query_ids[query] = query_id
 
   # Add fake paragraphs to the queries that have less than FLAGS.num_eval_docs.
   queries = list(queries_docs.keys())  # Need to copy keys before iterating.
