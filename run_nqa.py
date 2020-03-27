@@ -20,7 +20,7 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-DATA_DIR = "/nas-data/datasets/NarrativeReader/"
+DATA_DIR = "./data/"
 BASE_DIR = DATA_DIR + "narrativeqa/"
 
 ## Required parameters
@@ -32,7 +32,7 @@ flags.DEFINE_string(
 
 flags.DEFINE_string(
     "bert_config_file",
-    DATA_DIR + "BERT_LARGE_MSMARCO/bert_config.json",
+    "./BERT_LARGE_MSMARCO/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
@@ -46,7 +46,7 @@ flags.DEFINE_boolean(
 
 flags.DEFINE_string(
     "init_checkpoint",
-    DATA_DIR + "BERT_LARGE_MSMARCO/model.ckpt-100000",
+    "./BERT_LARGE_MSMARCO/model.ckpt-100000",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_integer(

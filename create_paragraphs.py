@@ -16,7 +16,7 @@ def gather_paragraphs(story_id, query_id, paragraphs_ids):
                     found=True
                     question, answer1, answer2 = line[2].split(), line[4].split(), line[5].split()
     for paragraph_id in paragraphs_ids:
-        context.append(paragraphs_str[paragraph_id])
+        context += paragraphs_str[paragraph_id]
     return context, question, answer1, answer2
 
 def select_n_best_paragraphs(ranking_file, n):
@@ -32,7 +32,7 @@ def select_n_best_paragraphs(ranking_file, n):
     context, question, a1, a2 = gather_paragraphs(story_id, query_id, paragraphs_ids)
     return context, question, a1, a2, story_id
 
-def write_jsonl(n_best=5):
+def write_jsonl(n_best=4):
     jsonl_list = list()
     for ranking_file in glob.iglob("./data/output/narrative_book_paragraphs/nqa_predictions_*"):
         context, q, a1, a2, doc_num = select_n_best_paragraphs(ranking_file, n_best)

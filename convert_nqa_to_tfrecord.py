@@ -89,7 +89,7 @@ def write_to_tf_record(writer, tokenizer, query, docs, labels,
     if ids_file:
      ids_file.write('\t'.join([query_id, doc_ids[i]]) + '\n')
 
-def convert_eval_dataset(set_name, tokenizer, eval_file):
+def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
   print('Converting {} set to tfrecord...'.format(set_name))
   start_time = time.time()
 
@@ -108,7 +108,9 @@ def convert_eval_dataset(set_name, tokenizer, eval_file):
   with open(dataset_path, 'r') as f:
     for i, line in enumerate(f):
       if i <= FLAGS.num_eval_docs:
-        query_id, doc_id, query, doc, _, _ = line.strip().split('\t')
+        query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
+        if attach_answer:
+            query += " {}".format(a2)
         label = 0
         if set_name == 'dev':
           if '\t'.join([query_id, doc_id]) in relevant_pairs:
@@ -200,7 +202,7 @@ def main():
     os.mkdir(FLAGS.output_folder)
 
   for eval_file in glob.glob("./data/narrativeqa/tmp/*_book.eval"):
-    convert_eval_dataset(set_name='eval', tokenizer=tokenizer, eval_file=eval_file)
+    convert_eval_dataset(set_name='eval', tokenizer=tokenizer, eval_file=eval_file, attach_answer=True)
   print('Done!')  
 
 if __name__ == '__main__':
