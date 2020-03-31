@@ -110,7 +110,7 @@ def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
       if i <= FLAGS.num_eval_docs:
         query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
         if attach_answer:
-            query += " {}".format(a2)
+            query += a2
         label = 0
         if set_name == 'dev':
           if '\t'.join([query_id, doc_id]) in relevant_pairs:

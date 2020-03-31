@@ -27,12 +27,15 @@ def select_n_best_paragraphs(ranking_file, n):
         query_id = query_id.replace('q','').strip()
         paragraphs_ids = [best_story[1].strip()]
         for i in range(1, n):
-            next_story = next(ranking_reader)
-            paragraphs_ids.append(next_story[1].strip())
+            try:
+                next_story = next(ranking_reader)
+                paragraphs_ids.append(next_story[1].strip())
+            except:
+                print("StopIteration Error : {} ".format(r_f.name))
     context, question, a1, a2 = gather_paragraphs(story_id, query_id, paragraphs_ids)
     return context, question, a1, a2, story_id
 
-def write_jsonl(n_best=4):
+def write_jsonl(n_best=3):
     jsonl_list = list()
     for ranking_file in glob.iglob("./data/output/narrative_book_paragraphs/nqa_predictions_*"):
         context, q, a1, a2, doc_num = select_n_best_paragraphs(ranking_file, n_best)
