@@ -40,10 +40,10 @@ def select_n_best_paragraphs(ranking_file, n):
 
 def write_jsonl(n_best=3):
     jsonl_list = list()
-    for ranking_file in glob.iglob("./data/output/NQA_just_question/nqa_predictions_*"):
+    for ranking_file in glob.iglob("./data/output/narrative_book_paragraphs/nqa_predictions_*"):
         context, q, a1, a2, doc_num = select_n_best_paragraphs(ranking_file, n_best)
         jsonl_list.append({'doc_num':doc_num, 'summary':context, 'ques':q, 'answer1':a1, 'answer2':a2, 'commonsense':[]})
-    with jsonlines.open('./data/narrativeqa/mhpg_format.jsonl', mode='w') as f:
+    with jsonlines.open('./data/narrativeqa/mhpg_mit_answer.jsonl', mode='w') as f:
         f.write_all(jsonl_list)
 
 def main():
