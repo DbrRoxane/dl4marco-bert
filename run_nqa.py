@@ -406,15 +406,15 @@ def main(_):
             for line in ref_file:
               query_docids_map.append(line.strip().split("\t"))
 
-        predictor = tf.contrib.predictor.from_estimator(
-                estimator,
-                eval_input_fn,
-                output_key=None,
-                graph=None
-        )
+       # predictor = tf.contrib.predictor.from_estimator(
+       #         estimator,
+       #         eval_input_fn,
+       #         output_key=None,
+       #         graph=None
+       # )
 
-        #result = estimator.predict(input_fn=eval_input_fn,
-        #                         yield_single_examples=True)
+        result = estimator.predict(input_fn=eval_input_fn,
+                                 yield_single_examples=True)
         start_time = time.time()
         results = []
         all_metrics = np.zeros(len(METRICS_MAP))
