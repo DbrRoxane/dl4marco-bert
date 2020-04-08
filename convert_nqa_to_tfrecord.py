@@ -9,17 +9,15 @@ import tensorflow as tf
 import time
 # local module
 import tokenization
-import glob
+
 
 flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-BASE_DIR = "./data/narrativeqa/"
 
 flags.DEFINE_string(
-    "output_folder", 
-    BASE_DIR+"nqa_tf",
+    "output_folder", "nqa_tf_3",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
@@ -28,14 +26,26 @@ flags.DEFINE_string(
     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
+    "train_dataset_path",
+    "./data/triples.train.small.tsv",
+    "Path to the MSMARCO training dataset containing the tab separated "
+    "<query, positive_paragraph, negative_paragraph> tuples.")
+
+flags.DEFINE_string(
+    "dev_dataset_path",
+    "./data/top1000.dev.tsv",
+    "Path to the MSMARCO training dataset containing the tab separated "
+    "<query, positive_paragraph, negative_paragraph> tuples.")
+
+flags.DEFINE_string(
     "eval_dataset_path",
-    BASE_DIR+"tmp/447d97a7439de3811d9b6f4dfd5685e09f5fb727_13135.eval",
+    "./data/narrativeqa/narrativeqa_book.eval",
     "Path to the MSMARCO eval dataset containing the tab separated "
     "<query, positive_paragraph, negative_paragraph> tuples.")
 
 flags.DEFINE_string(
     "dev_qrels_path",
-    BASE_DIR+"qrels.dev.tsv",
+    "./data/qrels.dev.tsv",
     "Path to the query_id relevant doc ids mapping.")
 
 flags.DEFINE_integer(
@@ -50,7 +60,7 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated.")
 
 flags.DEFINE_integer(
-    "num_eval_docs", 2080,
+    "num_eval_docs", 2000,
     "The maximum number of docs per query for dev and eval sets.")
 
 
@@ -89,7 +99,7 @@ def write_to_tf_record(writer, tokenizer, query, docs, labels,
     if ids_file:
      ids_file.write('\t'.join([query_id, doc_ids[i]]) + '\n')
 
-def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
+def convert_eval_dataset(set_name, tokenizer):
   print('Converting {} set to tfrecord...'.format(set_name))
   start_time = time.time()
 
@@ -101,22 +111,19 @@ def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
         query_id, _, doc_id, _ = line.strip().split('\t')
         relevant_pairs.add('\t'.join([query_id, doc_id]))
   else:
-    dataset_path = eval_file
+    dataset_path = FLAGS.eval_dataset_path
 
   queries_docs = collections.defaultdict(list)  
   query_ids = {}
   with open(dataset_path, 'r') as f:
     for i, line in enumerate(f):
-      if i <= FLAGS.num_eval_docs:
-        query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
-        if attach_answer:
-            query += a2
-        label = 0
-        if set_name == 'dev':
-          if '\t'.join([query_id, doc_id]) in relevant_pairs:
-            label = 1
-        queries_docs[query].append((doc_id, doc, label))
-        query_ids[query] = query_id
+      query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
+      label = 0
+      if set_name == 'dev':
+        if '\t'.join([query_id, doc_id]) in relevant_pairs:
+          label = 1
+      queries_docs[query].append((doc_id, doc, label))
+      query_ids[query] = query_id
 
   # Add fake paragraphs to the queries that have less than FLAGS.num_eval_docs.
   queries = list(queries_docs.keys())  # Need to copy keys before iterating.
@@ -124,17 +131,17 @@ def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
     docs = queries_docs[query]
     docs += max(
         0, FLAGS.num_eval_docs - len(docs)) * [('00000000', 'FAKE DOCUMENT', 0)]
-    queries_docs[query] = docs
+    queries_docs[query] = docs[:FLAGS.num_eval_docs]
 
   assert len(
       set(len(docs) == FLAGS.num_eval_docs for docs in queries_docs.values())) == 1, (
           'Not all queries have {} docs'.format(FLAGS.num_eval_docs))
 
   writer = tf.python_io.TFRecordWriter(
-      FLAGS.output_folder + '/'+ query_ids[queries[0]][:-1] +'dataset_' + set_name + '.tf')
+      FLAGS.output_folder + '/dataset_' + set_name + '.tf')
 
   query_doc_ids_path = (
-      FLAGS.output_folder + '/'+ query_ids[queries[0]][:-1] +'query_doc_ids_' + set_name + '.txt')
+      FLAGS.output_folder + '/query_doc_ids_' + set_name + '.txt')
   with open(query_doc_ids_path, 'w') as ids_file:
     for i, (query, doc_ids_docs) in enumerate(queries_docs.items()):
       doc_ids, docs, labels = zip(*doc_ids_docs)
@@ -155,8 +162,8 @@ def convert_eval_dataset(set_name, tokenizer, eval_file, attach_answer=False):
         time_passed = time.time() - start_time
         hours_remaining = (
             len(queries_docs) - i) * time_passed / (max(1.0, i) * 3600)
-        #print('Estimated hours remaining to write the {} set: {}'.format(
-        #    set_name, hours_remaining))
+        print('Estimated hours remaining to write the {} set: {}'.format(
+            set_name, hours_remaining))
   writer.close()
 
 
@@ -201,8 +208,7 @@ def main():
   if not os.path.exists(FLAGS.output_folder):
     os.mkdir(FLAGS.output_folder)
 
-  for eval_file in glob.glob("./data/narrativeqa/tmp/*_book.eval"):
-    convert_eval_dataset(set_name='eval', tokenizer=tokenizer, eval_file=eval_file, attach_answer=True)
+  convert_eval_dataset(set_name='eval', tokenizer=tokenizer)
   print('Done!')  
 
 if __name__ == '__main__':
