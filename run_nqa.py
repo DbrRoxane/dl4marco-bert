@@ -37,7 +37,7 @@ flags.DEFINE_string(
     "This specifies the model architecture.")
 
 flags.DEFINE_string(
-    "output_dir", "./data/output/narrative_book_paragraphs_2gpu/",
+    "output_dir", "./data/output/narrative_book_paragraphs_9avril/",
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_boolean(
@@ -71,7 +71,7 @@ flags.DEFINE_integer("num_train_steps", 400000,
 flags.DEFINE_integer("max_eval_examples", None,
                      "Maximum number of examples to be evaluated.")
 
-flags.DEFINE_integer("num_eval_docs", 2080,
+flags.DEFINE_integer("num_eval_docs", 2000,
                      "Number of docs per query in the dev and eval files.")
 
 flags.DEFINE_integer(
@@ -385,26 +385,22 @@ def main(_):
       max_eval_examples = None
       if FLAGS.max_eval_examples:
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
-      print(FLAGS.data_dir + "/dataset_" + set_name + ".tf")
 
-      for dataset_path in glob.glob("./data/narrativeqa/nqa_tf/*dataset_eval.tf"):
-        tf_id = dataset_path.split("/")[-1].split("dataset_eval.tf")[0]
-        eval_input_fn = input_fn_builder(
-                        dataset_path=dataset_path, #FLAGS.data_dir + "/dataset_" + set_name + ".tf",
+      eval_input_fn = input_fn_builder(
+                        dataset_path=FLAGS.data_dir + "/dataset_" + set_name + ".tf",
                         seq_length=FLAGS.max_seq_length,
                         is_training=False,
                         max_eval_examples=max_eval_examples)
 
-        tf.logging.info("Computing metrics...")
+      tf.logging.info("Computing metrics...")
 
-        if FLAGS.msmarco_output:
-          msmarco_file = tf.gfile.Open(
-                        FLAGS.output_dir + "nqa_predictions_" + tf_id + ".tsv", "w")
-          query_docids_map = []
-          with tf.gfile.Open(
-                 "./data/narrativeqa/nqa_tf/"+ tf_id + "query_doc_ids_eval.txt") as ref_file:
-            for line in ref_file:
-              query_docids_map.append(line.strip().split("\t"))
+      if FLAGS.msmarco_output:
+        msmarco_file = tf.gfile.Open(
+                      FLAGS.output_dir+"nqa_predictions.tsv", "w")
+        query_docids_map = []
+        with tf.gfile.Open(FLAGS.data_dir+"/query_doc_ids_eval.txt") as ref_file:
+          for line in ref_file:
+            query_docids_map.append(line.strip().split("\t"))
 
        # predictor = tf.contrib.predictor.from_estimator(
        #         estimator,
@@ -413,60 +409,59 @@ def main(_):
        #         graph=None
        # )
 
-        result = estimator.predict(input_fn=eval_input_fn,
+      result = estimator.predict(input_fn=eval_input_fn,
                                  yield_single_examples=True)
-        start_time = time.time()
-        results = []
-        all_metrics = np.zeros(len(METRICS_MAP))
-        example_idx = 0
-        total_count = 0
-        for item in result:
-          results.append((item["log_probs"], item["label_ids"]))
-          if total_count % 100 == 0:
-            tf.logging.info("Read {} examples in {} secs in {}".format(
-                  total_count, int(time.time() - start_time), tf_id))
+      start_time = time.time()
+      results = []
+      all_metrics = np.zeros(len(METRICS_MAP))
+      example_idx = 0
+      total_count = 0
+      for item in result:
+        results.append((item["log_probs"], item["label_ids"]))
+        if total_count % 1000 == 0:
+          tf.logging.info("Read {} examples in {} secs".format(
+                  total_count, int(time.time() - start_time)))
 
-          if len(results) == FLAGS.num_eval_docs:
-            log_probs, labels = zip(*results)
-            log_probs = np.stack(log_probs).reshape(-1, 2)
-            labels = np.stack(labels)
+        if len(results) == FLAGS.num_eval_docs:
+          log_probs, labels = zip(*results)
+          log_probs = np.stack(log_probs).reshape(-1, 2)
+          labels = np.stack(labels)
+          scores = log_probs[:, 1]
+          pred_docs = scores.argsort()[::-1]
+          gt = set(list(np.where(labels > 0)[0]))
 
-            scores = log_probs[:, 1]
-            pred_docs = scores.argsort()[::-1]
-            gt = set(list(np.where(labels > 0)[0]))
+          all_metrics += metrics.metrics(
+              gt=gt, pred=pred_docs, metrics_map=METRICS_MAP)
 
-            all_metrics += metrics.metrics(
-                gt=gt, pred=pred_docs, metrics_map=METRICS_MAP)
-
-            if FLAGS.msmarco_output:
-              start_idx = example_idx * FLAGS.num_eval_docs
-              end_idx = (example_idx + 1) * FLAGS.num_eval_docs
-              query_ids, doc_ids = zip(*query_docids_map[start_idx:end_idx])
-              assert len(set(query_ids)) == 1, "Query ids must be all the same."
-              query_id = query_ids[0]
-              rank = 1
-              for doc_idx in pred_docs:
-                doc_id = doc_ids[doc_idx]
-                # Skip fake docs, as they are only used to ensure that each query
-                # has 1000 docs.
-                if doc_id != "00000000":
-                  msmarco_file.write(
+          if FLAGS.msmarco_output:
+            start_idx = example_idx * FLAGS.num_eval_docs
+            end_idx = (example_idx + 1) * FLAGS.num_eval_docs
+            query_ids, doc_ids = zip(*query_docids_map[start_idx:end_idx])
+            assert len(set(query_ids)) == 1, "Query ids must be all the same."
+            query_id = query_ids[0]
+            rank = 1
+            for doc_idx in pred_docs:
+              doc_id = doc_ids[doc_idx]
+              # Skip fake docs, as they are only used to ensure that each query
+              # has 1000 docs.
+              if doc_id != "00000000":
+                msmarco_file.write(
                     "\t".join((query_id, doc_id, str(rank), str(log_probs[doc_idx, 1]))) + "\n")
-                  rank += 1
+                rank += 1
 
-            example_idx += 1
-            results = []
+          example_idx += 1
+          results = []
 
-          total_count += 1
+        total_count += 1
 
-        if FLAGS.msmarco_output:
-          msmarco_file.close()
+      if FLAGS.msmarco_output:
+        msmarco_file.close()
 
-        all_metrics /= example_idx
+      all_metrics /= example_idx
 
-        tf.logging.info("Eval {}:".format(set_name))
-        tf.logging.info("  ".join(METRICS_MAP))
-        tf.logging.info(all_metrics)
+      tf.logging.info("Eval {}:".format(set_name))
+      tf.logging.info("  ".join(METRICS_MAP))
+      tf.logging.info(all_metrics)
 
 
 if __name__ == "__main__":
