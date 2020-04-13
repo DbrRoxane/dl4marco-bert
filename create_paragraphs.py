@@ -6,58 +6,38 @@ import linecache
 import rouge as rouge_score
 import numpy as np
 
-"""def  gather_paragraphs(story_id, query_id, paragraphs_ids):
-    context = list()
-    paragraphs_tokenized = {}
-    found = False
-    with open("./data/narrativeqa/tmp/"+story_id+"_"+query_id+"_book.eval", 'r') as f:
-        csv_reader = csv.reader(f, delimiter="\t")
-        for row in csv_reader:
-            paragraph_id = row[1].strip()
-            if paragraph_id in paragraphs_ids:
-                paragraphs_tokenized[paragraph_id] = nltk.word_tokenize(row[3].lower())
-                if not found:
-                    found=True
-                    question = nltk.word_tokenize(row[2].lower())
-                    answer1 = nltk.word_tokenize(row[4].lower())
-                    answer2 = nltk.word_tokenize(row[5].lower())
-    for paragraph_id in paragraphs_ids:
-        context += paragraphs_tokenized[paragraph_id]
-    return context, question, answer1, answer2
-"""
+RANKING_FILE = "./data/output/narrative_book_paragraphs_9avril/nqa_predictions.tsv"
+BAUER_FILE = "./data/narrativeqa/bauer_format.jsonl"
+MIN_FILE = "./data/narrativeqa/min_format.json"
+BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_book.eval"
 
-"""def count_doc_per_query(ranking_file, n):
-    with open(ranking_file, 'r') as f:
-        ranking_reader = csv.reader(f, delimiter="\t")
-        first_row = next(ranking_reader)
-        query_id = first_row[0].split("_")[1]
-        cnt = 0
-        idx = query_id
-        while idx==query_id:
-            row = next(ranking_reader)
-            idx = row[0].split("_")[1]
-            cnt += 1
-    return cnt"""
- 
-def find_and_convert(ranking_file, n):
+def find_and_convert(n):
+    """
+    Retrieve the n best paragraphs in a story based on a question
+    And convert the data them to be processed by bauer and min models
+    ranking_file -> str: the file output by run_nqa.py
+    n -> int: the number of paragraph we want to retrieve
+    """
+
     entries = {}
-    bauer_style_file = jsonlines.open("./data/narrativeqa/bauer_format.jsonl", mode="w")
-    min_style_file = jsonlines.open("./data/narrativeqa/min_format.json", mode="w")
-    with open(ranking_file, 'r') as r_f:
+    bauer_style_file = jsonlines.open(BAUER_FILE, mode="w")
+    min_style_file = jsonlines.open(MIN_FILE, mode="w")
+    with open(RANKING_FILE, 'r') as r_f:
         ranking_reader = csv.reader(r_f, delimiter="\t")
         for row in ranking_reader:
-            if len(row) == 4 and eval(row[2]) in range(1,n+1):
+            # len(row)==4 to ensure the line is complete
+            if len(row) == 4 and eval(row[2]) in range(1, n+1):
                 if eval(row[2]) == 1:
                     complete_id =  row[0].split("_")
-                    story_id, query_id = complete_id[0], complete_id[1] 
-                    query_id = query_id.replace('q','').strip()
+                    story_id, query_id = complete_id[0], complete_id[1]
+                    query_id = query_id.replace('q', '').strip()
                     paragraphs_ids = list()
                 paragraphs_ids.append(row[1])
                 if eval(row[2]) == n:
                     context, query, answer1, answer2 = \
                             extract_extra(story_id, query_id, paragraphs_ids)
                     if context:
-                        entry={'complete_id':complete_id,
+                        entry= {'complete_id':complete_id,
                                'story_id':story_id,
                                'query_id':query_id,
                                'paragaphs_id':paragraphs_ids,
@@ -71,7 +51,7 @@ def find_and_convert(ranking_file, n):
     min_style_file.close()
 
 def extract_extra(story_id, query_id, paragraphs_id):
-    book_eval_file = "./data/narrativeqa/narrativeqa_book.eval"
+    book_eval_file = BOOK_EVAL_FILE
     answer1, answer2, query = None, None, None
     paragraphs = list()
     with open(book_eval_file, "r") as f:
@@ -85,7 +65,6 @@ def extract_extra(story_id, query_id, paragraphs_id):
                 if len(paragraphs)==len(paragraphs_id):
                     context = "\n".join(paragraphs)
                     return context, query, answer1, answer2
-    print("did not find anything for", story_id, query_id, paragraphs_id)
     return None, None, None, None
 
 def write_to_bauer(bauer_file, entry):
@@ -102,10 +81,8 @@ def extract_first_span(paragraph, subtext):
     for i in start_index:
         if paragraph[i:i+n]==subtext:
             return i, i+n-1
-    print("oops")
-    return None, None
 
-def extract_answer(paragraph, answer1, answer2, max_n):
+def extract_answer(paragraph, answer1, answer2, max_n, threshold=0.3):
     previous_max_score = 0
     subtext = paragraph
     rouge = rouge_score.Rouge()
@@ -126,7 +103,7 @@ def extract_answer(paragraph, answer1, answer2, max_n):
         subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
         previous_max_score = max_score
 
-    if max_score < 0.3:
+    if max_score < threshold:
         return []
     index_start, index_end = extract_first_span(paragraph, subtext)
     return {'text':subtext, 'word_start':index_start, 'word_end':index_end}
@@ -141,7 +118,6 @@ def write_to_min(min_file, entry):
         p_tokenized = nltk.word_tokenize(paragraph.replace('.',''))
         #remove point because generate errors because oof rouge code
         context.append(p_tokenized)
-        #find all answers
         answer_dic = (extract_answer(p_tokenized, entry['answer1'], entry['answer2'], 20))
         if answer_dic != []:
             answer_text = answer_dic['text']
@@ -153,35 +129,9 @@ def write_to_min(min_file, entry):
                     'answers':answers,
                     'final_answers':final_answers})
 
-"""def find_and_convert(n_best=3):
-    ranking_file = "./data/output/narrative_book_paragraphs_9avril/nqa_predictions.tsv"
-    entries = find_and_convert(ranking_file, n_best)
-    with jsonlines.open("./data/narrativeqa/bauer_format.jsonl", mode="w") as f:
-        for entry in entries.items():
-            f.write({'doc_num':entry['story_id'],
-                           'summary':entry['context_split'],
-                           'ques':entry['query_str'],
-                           'answer1':entry['answer1_split'],
-                           'answer2':entry['answer2_split'],
-                           'commonsense':[]})
-"""
-
-"""def convert_summaries_style(n_best=3):
-    ranking_file = "./data/output/narrative_book_paragraphs_9avril/nqa_predictions.tsv"
-    with open("contexts.csv", "w") as write_f:
-        csv_writer = csv.writer(write_f, delimiter=",")
-        entries = find_and_convert(ranking_file, n_best)
-        with open("./data/narrativeqa/qaps.csv", "r") as read_file:
-            csv_reader = csv.reader(read_file, delimiter=',')
-            nex(csv_reader)
-            for row in csv_reader:
-                doc_id = row[0]
-                from_set = row[1]
-"""
 
 def main():
-    ranking_file = "./data/output/narrative_book_paragraphs_9avril/nqa_predictions.tsv"
-    find_and_convert(ranking_file, 3)
+    find_and_convert(3)
 
 if __name__=="__main__":
     main()

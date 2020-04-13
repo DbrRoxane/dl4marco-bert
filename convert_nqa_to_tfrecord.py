@@ -99,7 +99,7 @@ def write_to_tf_record(writer, tokenizer, query, docs, labels,
     if ids_file:
      ids_file.write('\t'.join([query_id, doc_ids[i]]) + '\n')
 
-def convert_eval_dataset(set_name, tokenizer):
+def convert_eval_dataset(set_name, tokenizer, use_answer=False):
   print('Converting {} set to tfrecord...'.format(set_name))
   start_time = time.time()
 
@@ -118,6 +118,8 @@ def convert_eval_dataset(set_name, tokenizer):
   with open(dataset_path, 'r') as f:
     for i, line in enumerate(f):
       query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
+      if use_answer:
+        query += a1 + a2
       label = 0
       if set_name == 'dev':
         if '\t'.join([query_id, doc_id]) in relevant_pairs:
