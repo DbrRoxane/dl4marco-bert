@@ -322,27 +322,27 @@ def main(_):
     tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
         FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
 
-  #is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-  #run_config = tf.contrib.tpu.RunConfig(
-  #    cluster=tpu_cluster_resolver,
-  #    master=FLAGS.master,
-  #    model_dir=FLAGS.output_dir,
-  #    save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-  #    tpu_config=tf.contrib.tpu.TPUConfig(
-  #        iterations_per_loop=FLAGS.iterations_per_loop,
-  #        num_shards=FLAGS.num_tpu_cores,
-  #        per_host_input_for_training=is_per_host))
-
-  strategy = tf.contrib.distribute.MirroredStrategy()
-  sess_config=tf.ConfigProto(
-      allow_soft_placement=True, log_device_placement=True)
-
+  is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
   run_config = tf.contrib.tpu.RunConfig(
+      cluster=tpu_cluster_resolver,
+      master=FLAGS.master,
       model_dir=FLAGS.output_dir,
       save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-      session_config=sess_config,
-      eval_distribute=strategy
-  )
+      tpu_config=tf.contrib.tpu.TPUConfig(
+          iterations_per_loop=FLAGS.iterations_per_loop,
+          num_shards=FLAGS.num_tpu_cores,
+          per_host_input_for_training=is_per_host))
+
+  #strategy = tf.contrib.distribute.MirroredStrategy()
+  #sess_config=tf.ConfigProto(
+  #    allow_soft_placement=True, log_device_placement=True)
+
+ # run_config = tf.contrib.tpu.RunConfig(
+ #     model_dir=FLAGS.output_dir,
+ #     save_checkpoints_steps=FLAGS.save_checkpoints_steps,
+ #     session_config=sess_config,
+ #     eval_distribute=strategy
+ # )
 
   model_fn = model_fn_builder(
       bert_config=bert_config,
