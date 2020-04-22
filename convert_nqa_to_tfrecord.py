@@ -17,7 +17,7 @@ FLAGS = flags.FLAGS
 
 
 flags.DEFINE_string(
-    "output_folder", "nqa_tf_withanswer_14avril",
+    "output_folder", "nqa_tf_withanswer_22avril",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
@@ -39,7 +39,7 @@ flags.DEFINE_string(
 
 flags.DEFINE_string(
     "eval_dataset_path",
-    "./data/narrativeqa/narrativeqa_book.eval",
+    "./data/narrativeqa/narrativeqa_all.eval",
     "Path to the MSMARCO eval dataset containing the tab separated "
     "<query, positive_paragraph, negative_paragraph> tuples.")
 
@@ -60,7 +60,7 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated.")
 
 flags.DEFINE_integer(
-    "num_eval_docs", 2000,
+    "num_eval_docs", 500,
     "The maximum number of docs per query for dev and eval sets.")
 
 
@@ -211,7 +211,7 @@ def main():
     os.mkdir(FLAGS.output_folder)
 
   convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=True)
-  print('Done!')  
+  print('Done!')
 
 if __name__ == '__main__':
   main()

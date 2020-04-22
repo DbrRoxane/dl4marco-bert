@@ -62,8 +62,8 @@ if __name__=="__main__":
     print("Start processing data")
     entries = extract_data_entries(NQA_DIR, gather_char_min=True, min_char=1200)
     fieldnames = entries[0].keys()
-    print("Finished processing. Now write data in {}narrative_qa.eval".format(NQA_DIR))
-    with open(NQA_DIR+"narrativeqa_book.eval", "w", newline='') as writer:
+    print("Finished processing. Now write data in {}narrativeqa_all.eval".format(NQA_DIR))
+    with open(NQA_DIR+"narrativeqa_all.eval", "w", newline='') as writer:
         dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
         dict_writer.writerows(entries)
 
