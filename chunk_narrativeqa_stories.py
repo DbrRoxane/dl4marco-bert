@@ -13,13 +13,24 @@ def chunk_story_paragraphs(story_id, data_dir):
                    for paragraph in story_str.split("\n\n")]
     return chunks
 
+def gather_paragraphs(paragraphs, min_char):
+    chunks = []
+    chunk = ""
+    for paragraph in paragraphs:
+        chunk += paragraph
+        if len(chunk) >= min_char:
+            chunks.append(chunk)
+            chunk = ""
+    chunks.append(chunk)
+    return chunks
+
 def is_book(data_dir, story_id):
     with open(data_dir+"documents.csv", "r") as f:
         csv_reader = csv.reader(f, delimiter=',')
         book = [row[2]=="gutenberg" for row in csv_reader if row[0]==story_id][0]
     return book
 
-def extract_data_entries(data_dir):
+def extract_data_entries(data_dir, gather_char_min, min_char=1500):
     entries = list()
     with open(data_dir+"qaps.csv", "r") as qa_file:
         csv_reader = csv.reader(qa_file, delimiter=',')
@@ -33,6 +44,10 @@ def extract_data_entries(data_dir):
             chunks = stories_chunked.get(story_id, list())
             if not chunks and book:
                 chunks = chunk_story_paragraphs(story_id, data_dir)
+                if gather_char_min:
+                    print("nb of chunk before", len(chunks))
+                    chunks = gather_paragraphs(chunks, min_char)
+                    print("nb of chunk after", len(chunks))
                 stories_chunked[story_id] = chunks
             for cnt, chunk in enumerate(chunks):
                 entries.append({
@@ -48,7 +63,7 @@ if __name__=="__main__":
     NQA_DIR = "./data/narrativeqa/"
     #CHUNK_SIZE = 2000
     print("Start processing data")
-    entries = extract_data_entries(NQA_DIR)
+    entries = extract_data_entries(NQA_DIR, gather_char_min=True, min_char=1200)
     fieldnames = entries[0].keys()
     print("Finished processing. Now write data in {}narrative_qa_book.eval".format(NQA_DIR))
     with open(NQA_DIR+"narrativeqa_book.eval", "w", newline='') as writer:
