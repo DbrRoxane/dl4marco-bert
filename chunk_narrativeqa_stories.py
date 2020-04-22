@@ -40,14 +40,11 @@ def extract_data_entries(data_dir, gather_char_min, min_char=1500):
             story_id = question_set[0]
             question_str = question_set[2]
             answer_1, answer_2 = question_set[3], question_set[4]
-            book = is_book(data_dir, story_id)
             chunks = stories_chunked.get(story_id, list())
-            if not chunks and book:
+            if not chunks:
                 chunks = chunk_story_paragraphs(story_id, data_dir)
                 if gather_char_min:
-                    print("nb of chunk before", len(chunks))
                     chunks = gather_paragraphs(chunks, min_char)
-                    print("nb of chunk after", len(chunks))
                 stories_chunked[story_id] = chunks
             for cnt, chunk in enumerate(chunks):
                 entries.append({
@@ -65,7 +62,7 @@ if __name__=="__main__":
     print("Start processing data")
     entries = extract_data_entries(NQA_DIR, gather_char_min=True, min_char=1200)
     fieldnames = entries[0].keys()
-    print("Finished processing. Now write data in {}narrative_qa_book.eval".format(NQA_DIR))
+    print("Finished processing. Now write data in {}narrative_qa.eval".format(NQA_DIR))
     with open(NQA_DIR+"narrativeqa_book.eval", "w", newline='') as writer:
         dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
         dict_writer.writerows(entries)
