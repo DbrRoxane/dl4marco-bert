@@ -20,36 +20,26 @@ def get_complete_story(query_id):
         csv_reader = csv.reader(f, delimiter='\t', quoting=csv.QUOTE_NONE)
         for row in csv_reader:
             if len(row)==6 and query_id == row[0]:
-                book.append(row[3]))
+                book.append(row[3])
     end = time.time()
     print("{} required to extract story".format(end-start))
     return book
 
 def retrieve_paragraph_id(story_id, paragraphs):
     return [story_id+"_p" +
-            re.findall("\((.*?)\)", " ".join(p))[0].strip() for p in best_p]
+            re.findall("\((.*?)\)", " ".join(p))[0].strip() for p in paragraphs]
 
 
 def compute_tfidf(query, story_id, book, n):
+    print(query)
     query_tfidf = book['vectorizer'].transform([query])
     cosine_similarities = cosine_similarity(query_tfidf, book['tfidf']).flatten()
     best_index = np.flip(np.argsort(cosine_similarities), axis=0)[:n]
     best_p = [book['story'][i] for i in best_index]
+    print(best_p)
     best_id = retrieve_paragraph_id(story_id, best_p)
     return best_id
 
-
-
-def compute_bm25(query, story_id, tokenized_corpus, n):
-    tokenized_query = nltk.word_tokenize(query.lower())
-    bm25 = BM25Okapi(tokenized_corpus)
-    best_p = bm25.get_top_n(tokenized_query, tokenized_corpus, n=n)
-    print(query)
-    for p in best_p:
-        print(" ".join(p))
-    best_id = retrieve_paragraph_id(story_id, best_p)
-    print(best_id)
-    return best_id
 
 def gather_tfidf(n, attach_answer):
     with open(BOOK_EVAL_FILE, "r") as f:

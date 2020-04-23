@@ -17,7 +17,7 @@ FLAGS = flags.FLAGS
 
 
 flags.DEFINE_string(
-    "output_folder", "nqa_tf_without_answer_23avril",
+    "output_folder", "./data/narrativeqa/nqa_tf_with_answer_24avril",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
@@ -210,7 +210,7 @@ def main():
   if not os.path.exists(FLAGS.output_folder):
     os.mkdir(FLAGS.output_folder)
 
-  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=False)
+  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=True)
   print('Done!')
 
 if __name__ == '__main__':
