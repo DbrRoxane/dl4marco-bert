@@ -17,7 +17,7 @@ FLAGS = flags.FLAGS
 
 
 flags.DEFINE_string(
-    "output_folder", "nqa_tf_withanswer_22avril",
+    "output_folder", "nqa_tf_without_answer_23avril",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
@@ -119,7 +119,7 @@ def convert_eval_dataset(set_name, tokenizer, use_answer=False):
     for i, line in enumerate(f):
       query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
       if use_answer:
-        query += a1 + a2
+        query += " "+a1 +" "+ a2
       label = 0
       if set_name == 'dev':
         if '\t'.join([query_id, doc_id]) in relevant_pairs:
@@ -158,7 +158,7 @@ def convert_eval_dataset(set_name, tokenizer, use_answer=False):
                          query_id=query_id,
                          doc_ids=doc_ids)
 
-      if i % 100 == 0:
+      if i % 1000 == 0:
         print('Writing {} set, query {} of {}'.format(
             set_name, i, len(queries_docs)))
         time_passed = time.time() - start_time
@@ -210,7 +210,7 @@ def main():
   if not os.path.exists(FLAGS.output_folder):
     os.mkdir(FLAGS.output_folder)
 
-  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=True)
+  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=False)
   print('Done!')
 
 if __name__ == '__main__':

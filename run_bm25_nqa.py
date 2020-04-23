@@ -5,15 +5,21 @@ import nltk
 import numpy as np
 from rank_bm25 import BM25Okapi
 
+import sys
+
+csv.field_size_limit(sys.maxsize)
+
 BM25_FILE = "./data/narrativeqa/bm25_predictions.tsv"
-BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_book.eval"
+BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
 
 def get_complete_story(query_id):
     start = time.time()
+    book = []
     with open(BOOK_EVAL_FILE, "r") as f:
-        csv_reader = csv.reader(f, delimiter='\t')
-        book = [nltk.word_tokenize(p[3].lower()) \
-                for p in csv_reader if query_id == p[0]]
+        csv_reader = csv.reader(f, delimiter='\t', quoting=csv.QUOTE_NONE)
+        for row in csv_reader:
+            if len(row)==6 and query_id == row[0]:
+                book.append(nltk.word_tokenize(row[3].lower()))
     end = time.time()
     print("{} required to extract story".format(end-start))
     return book

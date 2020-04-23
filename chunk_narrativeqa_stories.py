@@ -9,7 +9,7 @@ def chunk_story_paragraphs(story_id, data_dir):
     story_file = NQA_DIR + "tmp/" + story_id + ".content"
     with open(story_file, 'r', encoding="utf-8", errors="ignore") as f:
         story_str = f.read()
-        chunks =  [re.sub('\s+', ' ',paragraph)
+        chunks =  [re.sub('\s+', ' ',paragraph).replace('\0', '')
                    for paragraph in story_str.split("\n\n")]
     return chunks
 
@@ -17,7 +17,7 @@ def gather_paragraphs(paragraphs, min_char):
     chunks = []
     chunk = ""
     for paragraph in paragraphs:
-        chunk += paragraph
+        chunk += " " + paragraph + " "
         if len(chunk) >= min_char:
             chunks.append(chunk)
             chunk = ""
