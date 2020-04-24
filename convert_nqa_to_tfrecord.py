@@ -17,7 +17,7 @@ FLAGS = flags.FLAGS
 
 
 flags.DEFINE_string(
-    "output_folder", "./data/narrativeqa/nqa_tf_without_answer_24avril",
+    "output_folder", "./data/narrativeqa/nqa_tf_with_answer_24avril",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
@@ -131,13 +131,18 @@ def convert_eval_dataset(set_name, tokenizer, use_answer):
         print("{} checkpoint, save {} queries ".format(i, len(processed_dataset.items())))
       query_id, doc_id, query, doc, a1, a2 = line.strip().split('\t')
       if use_answer:
-        query += " "+a1 +" "+ a2
+        query += " " + a1 +" "+ a2
       label = 0
       if set_name == 'dev':
         if '\t'.join([query_id, doc_id]) in relevant_pairs:
           label = 1
       queries_docs[query].append((doc_id, doc, label))
       query_ids[query] = query_id
+  processed_dataset = queries_docs.copy()
+  queries_docs = collections.defaultdict(list)
+  queries_docs[query] = processed_dataset[query].copy()
+  del processed_dataset[query]
+  split_dataset.append(processed_dataset)
 
   for j, queries_docs in enumerate(split_dataset):
   # Add fake paragraphs to the queries that have less than FLAGS.num_eval_docs.
@@ -222,7 +227,7 @@ def main():
   if not os.path.exists(FLAGS.output_folder):
     os.mkdir(FLAGS.output_folder)
 
-  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=False)
+  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=True)
   print('Done!')
 
 if __name__ == '__main__':
