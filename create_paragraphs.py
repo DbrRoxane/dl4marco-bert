@@ -11,7 +11,9 @@ import sys
 csv.field_size_limit(sys.maxsize)
 
 BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
-RANKING_FILES = ["./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv"]
+RANKING_FILES = ["./data/output/bm25/bm25_predictions.tsv",
+                 "./data/output/tfidf/tfidf_predictions.tsv",
+                 "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv"]
 #RANKING_FILES = ["./data/narrativeqa/bm25_predictions.tsv"],
 #                "./data/narrativeqa/tfidf_predictions.tsv",
 #                "./data/narrativeqa/nqa_predictions_with_answer0.tsv"]
@@ -35,7 +37,8 @@ def find_and_convert(n, bauer, hardem, annotation):
         min_style_file = jsonlines.open(MIN_FILE, mode="w")
     if annotation:
         annotation_file = open(ANNOTATION_FILE, "w")
-        annotation_file_csv = csv.writer(annotation_file, delimiter="\t")
+        fieldnames = ['question_id', 'paragraph_id', 'question','answers','parahraph']
+        annotation_file_csv = csv.DictWriter(annotation_file, delimiter="\t", fieldnames=fieldnames)
         already_writen = {}
 
     for ranking_file in RANKING_FILES:
@@ -58,7 +61,7 @@ def find_and_convert(n, bauer, hardem, annotation):
                             entry= {'complete_id':complete_id,
                                     'story_id':story_id,
                                     'query_id':query_id,
-                                    'paragaphs_id':paragraphs_ids,
+                                    'paragraphs_id':paragraphs_ids,
                                     'query':query,
                                     'context':context,
                                     'answer1':answer1,
@@ -101,7 +104,7 @@ def write_to_annotation(annotation_file_csv, entry, already_writen):
     for i, paragraph_id in enumerate(entry['paragraphs_id']):
         if paragraph_id not in already_writen[entry['query_id']]:
             already_writen[entry['query_id']].append(paragraph_id)
-            annotation_file_csv.write({'question_id':entry['query_id'],
+            annotation_file_csv.writerow({'question_id':entry['query_id'],
                            'paragraph_id':paragraph_id,
                            'question' : entry['query'],
                            'answers': " or ".join([entry['answer1'], entry['answer2']]),
@@ -181,7 +184,7 @@ def write_to_min(min_file, entry):
 
 
 def main():
-    find_and_convert(n=3, bauer=True, hardem=True, annotation=False)
+    find_and_convert(n=3, bauer=False, hardem=False, annotation=True)
 
 if __name__=="__main__":
     main()
