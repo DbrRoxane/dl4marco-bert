@@ -59,7 +59,7 @@ def write_bm25_pred(n, attach_answer):
         predictions = gather_bm25(n, attach_answer)
         for query_id,paragraphs in predictions.items():
             for i,p in enumerate(paragraphs):
-                f.write("{}\t{}\t{}\n".format(query_id, p, i))
+                f.write("{}\t{}\t{}\n".format(query_id, p, i+1))
 
 def main():
     write_bm25_pred(n=3, attach_answer=True)

@@ -27,7 +27,7 @@ def get_complete_story(query_id):
 
 def retrieve_paragraph_id(story_id, paragraphs):
     return [story_id+"_p" +
-            re.findall("\((.*?)\)", " ".join(p))[0].strip() for p in paragraphs]
+            re.findall("\((.*?)\)", p)[0].strip() for p in paragraphs]
 
 
 def compute_tfidf(query, story_id, book, n):
@@ -70,7 +70,7 @@ def write_tfidf_pred(n, attach_answer):
         predictions = gather_tfidf(n, attach_answer)
         for query_id,paragraphs in predictions.items():
             for i,p in enumerate(paragraphs):
-                f.write("{}\t{}\t{}\n".format(query_id, p, i))
+                f.write("{}\t{}\t{}\n".format(query_id, p, i+1))
 
 def main():
     write_tfidf_pred(n=3, attach_answer=True)
