@@ -6,8 +6,12 @@ import linecache
 import rouge as rouge_score
 import numpy as np
 
-BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_book.eval"
-RANKING_FILES = ["./data/narrativeqa/nqa_predictions_with_answer0.tsv"]
+import sys
+
+csv.field_size_limit(sys.maxsize)
+
+BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
+RANKING_FILES = ["./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv"]
 #RANKING_FILES = ["./data/narrativeqa/bm25_predictions.tsv"],
 #                "./data/narrativeqa/tfidf_predictions.tsv",
 #                "./data/narrativeqa/nqa_predictions_with_answer0.tsv"]
@@ -115,9 +119,13 @@ def write_to_bauer(bauer_file, entry):
 def extract_first_span(paragraph, subtext):
     n = len(subtext)
     s = []
-    for p in subtext:
-        s.append(p.replace('`','\''))
+    for sub in subtext:
+        s.append(sub.replace('`','\''))
     subtext = s
+    p = []
+    for par in paragraph:
+        p.append(par.replace('`','\''))
+    paragraph = p
     start_index = [i for i,x in enumerate(paragraph) if x in subtext[0]]
     print(paragraph, subtext, start_index)
     for i in start_index:

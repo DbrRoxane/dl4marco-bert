@@ -26,7 +26,7 @@ BASE_DIR = DATA_DIR + "narrativeqa/"
 ## Required parameters
 flags.DEFINE_string(
     "data_dir",
-    BASE_DIR + "nqa_tf",
+    BASE_DIR + "tf_files/nqa_tf_with_answer_24avril/",
     "The input data dir. Should contain the .tfrecord files and the supporting "
     "query-docids mapping files.")
 
@@ -37,7 +37,7 @@ flags.DEFINE_string(
     "This specifies the model architecture.")
 
 flags.DEFINE_string(
-    "output_dir", "./data/output/narrative_book_paragraphs_9avril/",
+    "output_dir", "./data/output/nqa_with_answer_24avril/",
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_boolean(
@@ -71,7 +71,7 @@ flags.DEFINE_integer("num_train_steps", 400000,
 flags.DEFINE_integer("max_eval_examples", None,
                      "Maximum number of examples to be evaluated.")
 
-flags.DEFINE_integer("num_eval_docs", 2000,
+flags.DEFINE_integer("num_eval_docs", 500,
                      "Number of docs per query in the dev and eval files.")
 
 flags.DEFINE_integer(
@@ -379,7 +379,8 @@ def main(_):
     tf.logging.info("Done Training!")
 
   if FLAGS.do_eval:
-    for set_name in ["eval"]:
+    for k in [5]:
+      set_name = "eval"
       tf.logging.info("***** Running evaluation *****")
       tf.logging.info("  Batch size = %d", FLAGS.eval_batch_size)
       max_eval_examples = None
@@ -387,7 +388,7 @@ def main(_):
         max_eval_examples = FLAGS.max_eval_examples * FLAGS.num_eval_docs
 
       eval_input_fn = input_fn_builder(
-                        dataset_path=FLAGS.data_dir + "/dataset_" + set_name + ".tf",
+                        dataset_path=FLAGS.data_dir + "dataset_" + set_name + str(k)+ ".tf",
                         seq_length=FLAGS.max_seq_length,
                         is_training=False,
                         max_eval_examples=max_eval_examples)
@@ -396,9 +397,9 @@ def main(_):
 
       if FLAGS.msmarco_output:
         msmarco_file = tf.gfile.Open(
-                      FLAGS.output_dir+"nqa_predictions.tsv", "w")
+                      FLAGS.output_dir+"nqa_predictions_with_answer"+ str(k)+".tsv", "w")
         query_docids_map = []
-        with tf.gfile.Open(FLAGS.data_dir+"/query_doc_ids_eval.txt") as ref_file:
+        with tf.gfile.Open(FLAGS.data_dir+"query_doc_ids_eval"+str(k)+".txt") as ref_file:
           for line in ref_file:
             query_docids_map.append(line.strip().split("\t"))
 
