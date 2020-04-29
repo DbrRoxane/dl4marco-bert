@@ -5,7 +5,7 @@ import itertools
 import linecache
 import rouge as rouge_score
 import numpy as np
-
+import time
 import sys
 
 csv.field_size_limit(sys.maxsize)
@@ -21,7 +21,31 @@ BAUER_FILE = "./data/narrativeqa/bauer_format.jsonl"
 MIN_FILE = "./data/narrativeqa/min_format.json"
 ANNOTATION_FILE = "./data/narrativeqa/amt.csv"
 
-def find_and_convert(n, bauer, hardem, annotation):
+
+def convert_docs_in_dic(file_name):
+    with open(file_name, "r", encoding="ascii", errors="ignore") as f:
+        dataset = {}
+        csv_reader = csv.reader(f, delimiter="\t")
+        for row in csv_reader:
+            query_id = row[0]
+            story_id = query_id.split("_")[0]
+            if story_id not in dataset.keys():
+                dataset[story_id] = {'paragraphs': {}, 'queries':{}}
+            paragraph_id = row[1]
+            if paragraph_id not in dataset[story_id]['paragraphs'].keys():
+                pargraph = row[3].replace('`','')
+                dataset[story_id]['paragraphs'][paragraph_id] = pargraph
+            if query_id not in dataset[story_id]['queries'].keys():
+                query = row[2].replace('`','')
+                answer1, answer2 = row[4].replace('`',''), row[5].replace('`','')
+                dataset[story_id]['queries'][query_id] = {
+                    'query': query,
+                    'answer1' : answer1,
+                    'answer2' : answer2}
+    return dataset
+
+
+def find_and_convert(dataset, n, bauer, hardem, annotation):
     """
     Retrieve the n best paragraphs in a story based on a question
     And convert the data them to be processed by bauer and min models
@@ -45,22 +69,18 @@ def find_and_convert(n, bauer, hardem, annotation):
         with open(ranking_file, 'r') as r_f:
             ranking_reader = csv.reader(r_f, delimiter="\t")
             for row in ranking_reader:
-                # print(row)
-                # len(row)==4 to ensure the line is complete
-                if len(row) == 3 and eval(row[2]) in range(1, n+1):
+                if len(row) in [3,4] and eval(row[2]) in range(1, n+1):
                     if eval(row[2]) == 1:
-                        complete_id =  row[0].split("_")
-                        story_id, query_id = complete_id[0], complete_id[1]
-                        query_id = query_id.replace('q', '').strip()
+                        query_id =  row[0]
+                        story_id, query_number = query_id.split("_")
                         paragraphs_ids = list()
                     paragraphs_ids.append(row[1])
                     if eval(row[2]) == n:
                         context, query, answer1, answer2 = \
-                                extract_extra(story_id, query_id, paragraphs_ids)
+                                extract_extra(dataset, story_id, query_id, paragraphs_ids)
                         if context:
-                            entry= {'complete_id':complete_id,
+                            entry= {'query_id':query_id,
                                     'story_id':story_id,
-                                    'query_id':query_id,
                                     'paragraphs_id':paragraphs_ids,
                                     'query':query,
                                     'context':context,
@@ -81,33 +101,28 @@ def find_and_convert(n, bauer, hardem, annotation):
         annotation_file.close()
 
 
-def extract_extra(story_id, query_id, paragraphs_id):
-    book_eval_file = BOOK_EVAL_FILE
-    answer1, answer2, query = None, None, None
-    paragraphs = list()
-    with open(book_eval_file, "r") as f:
-        csv_reader = csv.reader(f, delimiter="\t")
-        for row in csv_reader:
-            if row[0] == story_id+"_q"+query_id and row[1] in paragraphs_id:
-                if not answer1:
-                    query = row[2]
-                    answer1, answer2 = row[4], row[5]
-                paragraphs.append(row[3])
-                if len(paragraphs)==len(paragraphs_id):
-                    context = "\n".join(paragraphs)
-                    return context, query, answer1, answer2
-    return None, None, None, None
+def extract_extra(dataset, story_id, query_id, paragraphs_id):
+    context = [paragraph_str
+               for paragraph_id, paragraph_str in \
+                    dataset[story_id]['paragraphs'].items() \
+               if paragraph_id in paragraphs_id]
+    context = "\n".join(context).replace('`', '\'')
+    #print(dataset[story_id]['queries'][query_id])
+    query, answer1, answer2 = dataset[story_id]['queries'][query_id].values()
+    return context, query, answer1, answer2
 
 def write_to_annotation(annotation_file_csv, entry, already_writen):
     if entry['query_id'] not in already_writen.keys():
         already_writen[entry['query_id']] = []
     for i, paragraph_id in enumerate(entry['paragraphs_id']):
+        #print(entry['context'])
         if paragraph_id not in already_writen[entry['query_id']]:
             already_writen[entry['query_id']].append(paragraph_id)
             annotation_file_csv.writerow({'question_id':entry['query_id'],
                            'paragraph_id':paragraph_id,
                            'question' : entry['query'],
-                           'answers': " or ".join([entry['answer1'], entry['answer2']]),
+                           'answers': "Answer 1 :"+entry['answer1']+
+                                          " Answer2 : "+entry['answer2'],
                            'parahraph':entry['context'].split("\n")[i]})
 
 
@@ -121,16 +136,8 @@ def write_to_bauer(bauer_file, entry):
 
 def extract_first_span(paragraph, subtext):
     n = len(subtext)
-    s = []
-    for sub in subtext:
-        s.append(sub.replace('`','\''))
-    subtext = s
-    p = []
-    for par in paragraph:
-        p.append(par.replace('`','\''))
-    paragraph = p
     start_index = [i for i,x in enumerate(paragraph) if x in subtext[0]]
-    print(paragraph, subtext, start_index)
+    #print(paragraph, subtext, start_index)
     for i in start_index:
         if paragraph[i:i+n]==subtext:
             return i, i+n-1
@@ -176,7 +183,7 @@ def write_to_min(min_file, entry):
             answer_text = answer_dic['text']
             final_answers.append(answer_text)
         answers.append(answer_dic)
-    min_file.write({'id':"_".join(entry['complete_id']),
+    min_file.write({'id':entry['query_id'],
                     'question' :entry['query'],
                     'context':context,
                     'answers':answers,
@@ -184,7 +191,12 @@ def write_to_min(min_file, entry):
 
 
 def main():
-    find_and_convert(n=3, bauer=False, hardem=False, annotation=True)
+    start =  time.time()
+    dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
+    end = time.time()
+    dur = start-end
+    print("done in {} seconds".format(dur))
+    find_and_convert(dataset, n=3, bauer=True, hardem=True, annotation=True)
 
 if __name__=="__main__":
     main()
