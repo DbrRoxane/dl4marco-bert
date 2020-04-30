@@ -11,14 +11,33 @@ import sys
 csv.field_size_limit(sys.maxsize)
 
 BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
-RANKING_FILES = ["./data/output/bm25/bm25_predictions.tsv",
-                 "./data/output/tfidf/tfidf_predictions.tsv",
-                 "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv"]
-#RANKING_FILES = ["./data/narrativeqa/bm25_predictions.tsv"],
-#                "./data/narrativeqa/tfidf_predictions.tsv",
-#                "./data/narrativeqa/nqa_predictions_with_answer0.tsv"]
-BAUER_FILE = "./data/narrativeqa/bauer_format.jsonl"
-MIN_FILE = "./data/narrativeqa/min_format.json"
+RANKNG_BERT_WITH_ANSWER = ["./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer1.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer2.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer3.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer4.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer5.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer6.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer7.tsv",
+                "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer8.tsv",
+                ]
+
+RANKNG_BERT_WITHOUT_ANSWER = \
+        ["./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer0.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer1.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer2.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer3.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer4.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer5.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer6.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer7.tsv",
+         "./data/output/nqa_with_answer_24avril/nqa_predictions_with_answer8.tsv",
+         ]
+RANKING_BM25 = "./data/output/bm25/bm25_predictions.tsv"
+RANKING_TFIDF = "./data/output/tfidf/tfidf_predictions.tsv" 
+
+BAUER_FILE = "./data/narrativeqa/bauer_without_answer_format.jsonl"
+MIN_FILE = "./data/narrativeqa/min_without_answer_format.json"
 ANNOTATION_FILE = "./data/narrativeqa/amt.csv"
 
 
@@ -33,17 +52,16 @@ def convert_docs_in_dic(file_name):
                 dataset[story_id] = {'paragraphs': {}, 'queries':{}}
             paragraph_id = row[1]
             if paragraph_id not in dataset[story_id]['paragraphs'].keys():
-                pargraph = row[3].replace('`','')
+                pargraph = row[3]
                 dataset[story_id]['paragraphs'][paragraph_id] = pargraph
             if query_id not in dataset[story_id]['queries'].keys():
-                query = row[2].replace('`','')
-                answer1, answer2 = row[4].replace('`',''), row[5].replace('`','')
+                query = row[2]
+                answer1, answer2 = row[4], row[5]
                 dataset[story_id]['queries'][query_id] = {
                     'query': query,
                     'answer1' : answer1,
                     'answer2' : answer2}
     return dataset
-
 
 def find_and_convert(dataset, n, bauer, hardem, annotation):
     """
@@ -65,17 +83,19 @@ def find_and_convert(dataset, n, bauer, hardem, annotation):
         annotation_file_csv = csv.DictWriter(annotation_file, delimiter="\t", fieldnames=fieldnames)
         already_writen = {}
 
-    for ranking_file in RANKING_FILES:
+    for ranking_file in RANKNG_BERT_WITHOUT_ANSWER:
         with open(ranking_file, 'r') as r_f:
             ranking_reader = csv.reader(r_f, delimiter="\t")
             for row in ranking_reader:
                 if len(row) in [3,4] and eval(row[2]) in range(1, n+1):
                     if eval(row[2]) == 1:
                         query_id =  row[0]
-                        story_id, query_number = query_id.split("_")
+                        story_id, _ = query_id.split("_")
                         paragraphs_ids = list()
+                    if row[1] in paragraphs_ids:
+                        print("ignore", query_id)
                     paragraphs_ids.append(row[1])
-                    if eval(row[2]) == n:
+                    if eval(row[2]) == n and len(set(paragraphs_ids))==n:
                         context, query, answer1, answer2 = \
                                 extract_extra(dataset, story_id, query_id, paragraphs_ids)
                         if context:
@@ -106,7 +126,10 @@ def extract_extra(dataset, story_id, query_id, paragraphs_id):
                for paragraph_id, paragraph_str in \
                     dataset[story_id]['paragraphs'].items() \
                if paragraph_id in paragraphs_id]
-    context = "\n".join(context).replace('`', '\'')
+    if len(context) != 3:
+        print(len(paragraphs_id), len(context), paragraphs_id, 
+              len(dataset[story_id]['paragraphs'].values()))
+    context = "\n".join(context)
     #print(dataset[story_id]['queries'][query_id])
     query, answer1, answer2 = dataset[story_id]['queries'][query_id].values()
     return context, query, answer1, answer2
@@ -115,7 +138,6 @@ def write_to_annotation(annotation_file_csv, entry, already_writen):
     if entry['query_id'] not in already_writen.keys():
         already_writen[entry['query_id']] = []
     for i, paragraph_id in enumerate(entry['paragraphs_id']):
-        #print(entry['context'])
         if paragraph_id not in already_writen[entry['query_id']]:
             already_writen[entry['query_id']].append(paragraph_id)
             annotation_file_csv.writerow({'question_id':entry['query_id'],
@@ -136,6 +158,14 @@ def write_to_bauer(bauer_file, entry):
 
 def extract_first_span(paragraph, subtext):
     n = len(subtext)
+    s = []
+    for sub in subtext:
+        s.append(sub.replace('`','\''))
+    subtext = s
+    p = []
+    for par in paragraph:
+        p.append(par.replace('`','\''))
+    paragraph = p
     start_index = [i for i,x in enumerate(paragraph) if x in subtext[0]]
     #print(paragraph, subtext, start_index)
     for i in start_index:
@@ -148,7 +178,8 @@ def extract_answer(paragraph, answer1, answer2, max_n, threshold=0.5):
     rouge = rouge_score.Rouge()
     max_n = min(max_n, len(paragraph))
     for i in reversed(range(1, max_n+1)):
-        n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
+        n_grams = [" ".join(n_gram).replace('`', '\'')
+                   for n_gram in nltk.ngrams(subtext, i)]
         scores = [score['rouge-l']['f']
                   for score in rouge.get_scores(n_grams, [answer1]*len(n_grams))]
         scores += [score['rouge-l']['f']
@@ -156,7 +187,7 @@ def extract_answer(paragraph, answer1, answer2, max_n, threshold=0.5):
         max_index_score = np.argmax(np.array(scores))
         max_score = scores[max_index_score]
         if previous_max_score > max_score or max_score == 0:
-            if previous_max_score < 0.3 or max_score == 0:
+            if previous_max_score < threshold or max_score == 0:
                 return []
             index_start, index_end = extract_first_span(paragraph, subtext)
             return {'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}
@@ -191,12 +222,8 @@ def write_to_min(min_file, entry):
 
 
 def main():
-    start =  time.time()
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
-    end = time.time()
-    dur = start-end
-    print("done in {} seconds".format(dur))
-    find_and_convert(dataset, n=3, bauer=True, hardem=True, annotation=True)
+    find_and_convert(dataset, n=3, bauer=True, hardem=True, annotation=False)
 
 if __name__=="__main__":
     main()
