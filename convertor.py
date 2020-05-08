@@ -11,6 +11,9 @@ import sys
 csv.field_size_limit(sys.maxsize)
 
 BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
+DOCUMENTS_FILE = "./data/narrativeqa/documents.csv"
+SUMMARIES_FILE = "./data/narrativeqa/third_party/wikipedia/summaries.csv"
+
 RANKING_BERT_WITH_ANSWER = \
         ["./data/output/nqa_with_answer/nqa_predictions_with_answer0.tsv",
          "./data/output/nqa_with_answer/nqa_predictions_with_answer1.tsv",
@@ -40,10 +43,28 @@ RANKING_TFIDF = "./data/output/tfidf/tfidf_predictions.tsv"
 
 BAUER_FILE_WITH_ANSWER = "./data/narrativeqa/bauer_with_answer_format.jsonl"
 BAUER_FILE_WITHOUT_ANSWER = "./data/narrativeqa/bauer_without_answer_format.jsonl"
-MIN_FILE_WITH_ANSWER = "./data/narrativeqa/min_with_answer_format.json"
-MIN_FILE_WITHOUT_ANSWER = "./data/narrativeqa/min_without_answer_format.json"
-ANNOTATION_FILE = "./data/narrativeqa/amt.csv"
+MIN_FILE_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_summaries_with_answer_train.json"
+MIN_FILE_WITH_ANSWER_DEV = "./data/narrativeqa/min_summaries_with_answer_dev.json"
+MIN_FILE_WITH_ANSWER_TEST = "./data/narrativeqa/min_summaries_with_answer_test.json"
+MIN_FILE_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_summaries_without_answer_train.json"
+MIN_FILE_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_summaries_without_answer_dev.json"
+MIN_FILE_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_summaries_without_answer_test.json"
+ANNOTATION_FILE = "./data/narrativeqa/amt_6mai_2booktest.csv"
 
+def retrieve_doc_info(story_id):
+    with open(DOCUMENTS_FILE, "r") as f:
+        csv_reader = csv.DictReader(f, delimiter=",")
+        for row in csv_reader:
+            if row['document_id'] == story_id:
+                return row['set'], row['kind']
+        print("did not find story", story_id)
+
+def retrieve_summary(story_id):
+    with open(SUMMARIES_FILE, "r") as f:
+        csv_reader = csv.DictReader(f, delimiter=",")
+        for row in csv_reader:
+            if row['document_id'] == story_id:
+                return row['summary']
 
 def convert_docs_in_dic(file_name):
     with open(file_name, "r", encoding="ascii", errors="ignore") as f:
@@ -53,7 +74,11 @@ def convert_docs_in_dic(file_name):
             query_id = row[0]
             story_id = query_id.split("_")[0]
             if story_id not in dataset.keys():
-                dataset[story_id] = {'paragraphs': {}, 'queries':{}}
+                summary = retrieve_summary(story_id)
+                train_dev_test, book_movie = retrieve_doc_info(story_id)
+                dataset[story_id] = {'paragraphs': {}, 'queries':{},
+                                     'summary' : summary,
+                                     'set':train_dev_test, 'kind':book_movie}
             paragraph_id = row[1]
             if paragraph_id not in dataset[story_id]['paragraphs'].keys():
                 pargraph = row[3]
@@ -79,7 +104,7 @@ class Convertor(object):
         self.n = n
         self.dataset = dataset
 
-    def find_and_convert(self):
+    def find_and_convert(self, just_book=False, without_test=False):
         """
         Retrieve the n best paragraphs in a story based on a question
         """
@@ -97,10 +122,16 @@ class Convertor(object):
                             paragraphs_ids = list()
                         #detect and ignore repeated paragraphs in ranking
                         if row[1] in paragraphs_ids:
-                            print("ignore", query_id)
-                        paragraphs_ids.append(row[1])
-                        if eval(row[2]) == self.n and \
-                           len(set(paragraphs_ids)) == self.n:
+                            print("twice the same parahraph", query_id, row[1])
+                        else:
+                            paragraphs_ids.append(row[1])
+                        select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
+                                just_book else True
+                        select_test = self.dataset[story_id]['set'] != 'test' if \
+                                without_test else True
+
+                        if eval(row[2]) == self.n and select_book and select_test : # and \
+#                           len(set(paragraphs_ids)) == self.n:
                             context, query, answer1, answer2 = \
                                     self.extract_query_details(
                                         story_id, query_id, paragraphs_ids)
@@ -115,6 +146,21 @@ class Convertor(object):
                                 self.write_to_converted_file(converted_file, entry)
         converted_file.close()
 
+    def find_and_convert_from_summaries(self, train_dev_test):
+        converted_file = self.open_file()
+        for story_id, story_details in self.dataset.items():
+            if story_details['set'] == train_dev_test:
+                for query_id, query_details in story_details['queries'].items():
+                    entry = {'story_id':story_id,
+                             'query_id':query_id,
+                             'query':query_details['query'],
+                             'context':story_details['summary'],
+                             'answer1':query_details['answer1'],
+                             'answer2':query_details['answer2']
+                            }
+                    self.write_to_converted_file(converted_file, entry)
+        converted_file.close()
+
     def open_file(self):
         pass
 
@@ -127,9 +173,11 @@ class Convertor(object):
                    for paragraph_id, paragraph_str in \
                         self.dataset[story_id]['paragraphs'].items() \
                    if paragraph_id in paragraphs_id]
-        if len(context) != self.n:
-            print(len(paragraphs_id), len(context), paragraphs_id)
-        context = "\n".join(context)
+        if len(context) != len(paragraphs_id):
+            print("cannot retrieve passages", len(paragraphs_id), len(context), paragraphs_id)
+            context = ""
+        else:
+            context = "\n".join(context)
         query, answer1, answer2 = self.dataset[story_id]['queries'][query_id].values()
         return context, query, answer1, answer2
 
@@ -198,6 +246,7 @@ class MinConvertor(Convertor):
         subtext = paragraph
         rouge = rouge_score.Rouge()
         max_n = min(max_n, len(paragraph))
+        max_score = 0
         for i in reversed(range(1, max_n+1)):
             n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
             scores = [score['rouge-l']['f']
@@ -228,7 +277,7 @@ class AnnotationConvertor(Convertor):
 
     def open_file(self):
         annotation_file = open(self.converted_filename, "w")
-        fieldnames = ['question_id', 'paragraph_id', 'question','answers','parahraph']
+        fieldnames = ['question_id', 'paragraph_id', 'question','answers','paragraph']
         self.csv_writer = csv.DictWriter(annotation_file, delimiter="\t", fieldnames=fieldnames)
         self.csv_writer.writeheader()
         return annotation_file
@@ -250,19 +299,39 @@ class AnnotationConvertor(Convertor):
 def main():
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
-    min_convertor_with_answer = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                             MIN_FILE_WITH_ANSWER, 3, dataset)
-    min_convertor_with_answer.find_and_convert()
-    print("Created", MIN_FILE_WITH_ANSWER)
-    min_convertor_no_answer = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                           MIN_FILE_WITHOUT_ANSWER, 3, dataset)
-    min_convertor_no_answer.find_and_convert()
-    print("Created", MIN_FILE_WITHOUT_ANSWER)
-    all_ranking_files = RANKING_BERT_WITH_ANSWER + RANKING_BERT_WITHOUT_ANSWER + \
-            [RANKING_BM25, RANKING_TFIDF]
-    annotator_convertor = MinConvertor(all_ranking_files, ANNOTATION_FILE, 3, dataset)
-    annotator_convertor.find_and_convert()
-    print("Created", ANNOTATION_FILE)
+    
+    #min_convertor_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                         MIN_FILE_WITH_ANSWER_TRAIN, 3, dataset)
+    #min_convertor_with_answer_train.find_and_convert_from_summaries('train')
+    #print("Created", MIN_FILE_WITH_ANSWER_TRAIN)
+    #min_convertor_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                         MIN_FILE_WITH_ANSWER_DEV, 3, dataset)
+    #min_convertor_with_answer_dev.find_and_convert_from_summaries('valid')
+    #print("Created", MIN_FILE_WITH_ANSWER_DEV)
+    min_convertor_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                             MIN_FILE_WITH_ANSWER_TEST, 3, dataset)
+    min_convertor_with_answer_test.find_and_convert_from_summaries('test')
+    print("Created", MIN_FILE_WITH_ANSWER_TEST)
+
+    min_convertor_no_answer_train = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+                                           MIN_FILE_WITHOUT_ANSWER_TRAIN, 3, dataset)
+    min_convertor_no_answer_train.find_and_convert_from_summaries('train')
+    print("Created", MIN_FILE_WITHOUT_ANSWER_TRAIN)
+    min_convertor_no_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+                                           MIN_FILE_WITHOUT_ANSWER_DEV, 3, dataset)
+    min_convertor_no_answer_dev.find_and_convert_from_summaries('valid')
+    print("Created", MIN_FILE_WITHOUT_ANSWER_VALID)
+    min_convertor_no_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+                                           MIN_FILE_WITHOUT_ANSWER_TEST, 3, dataset)
+    min_convertor_no_answer.find_and_convert_from_summaries('test')
+    print("Created", MIN_FILE_WITHOUT_ANSWER_TEST)
+    #all_ranking_files = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
+    #+ RANKING_BERT_WITHOUT_ANSWER + \
+    #        [RANKING_BM25, RANKING_TFIDF]
+    #print(all_ranking_files)
+    #annotator_convertor = AnnotationConvertor(all_ranking_files, ANNOTATION_FILE, 2, dataset)
+    #annotator_convertor.find_and_convert(just_book=True, without_test=True)
+    #print("Created", ANNOTATION_FILE)
 
 
 
