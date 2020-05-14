@@ -64,7 +64,7 @@ def retrieve_summary(story_id):
         csv_reader = csv.DictReader(f, delimiter=",")
         for row in csv_reader:
             if row['document_id'] == story_id:
-                return row['summary']
+                return row['summary'].replace("\n", "")
 
 def convert_docs_in_dic(file_name):
     with open(file_name, "r", encoding="ascii", errors="ignore") as f:
@@ -218,7 +218,7 @@ class MinConvertor(Convertor):
                                                  entry['answer1'],
                                                  entry['answer2'])
             if answer_dic != []:
-                answer_text = answer_dic['text']
+                answer_text = answer_dic[0]['text']
                 final_answers.append(answer_text)
             answers.append(answer_dic)
         converted_file.write({'id':entry['query_id'],
@@ -259,14 +259,14 @@ class MinConvertor(Convertor):
                 if previous_max_score < threshold or max_score == 0:
                     return []
                 index_start, index_end = self.match_first_span(paragraph, subtext)
-                return {'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}
+                return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
             subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
             previous_max_score = max_score
 
         if max_score < threshold:
             return []
         index_start, index_end = self.match_first_span(paragraph, subtext)
-        return {'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}
+        return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
 
 
 
@@ -299,15 +299,16 @@ class AnnotationConvertor(Convertor):
 def main():
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
-    
-    #min_convertor_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                         MIN_FILE_WITH_ANSWER_TRAIN, 3, dataset)
-    #min_convertor_with_answer_train.find_and_convert_from_summaries('train')
-    #print("Created", MIN_FILE_WITH_ANSWER_TRAIN)
-    #min_convertor_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                         MIN_FILE_WITH_ANSWER_DEV, 3, dataset)
-    #min_convertor_with_answer_dev.find_and_convert_from_summaries('valid')
-    #print("Created", MIN_FILE_WITH_ANSWER_DEV)
+
+    min_convertor_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                             MIN_FILE_WITH_ANSWER_DEV, 3, dataset)
+    min_convertor_with_answer_dev.find_and_convert_from_summaries('valid')
+    print("Created", MIN_FILE_WITH_ANSWER_DEV)
+
+    min_convertor_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                             MIN_FILE_WITH_ANSWER_TRAIN, 3, dataset)
+    min_convertor_with_answer_train.find_and_convert_from_summaries('train')
+    print("Created", MIN_FILE_WITH_ANSWER_TRAIN)
     min_convertor_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
                                              MIN_FILE_WITH_ANSWER_TEST, 3, dataset)
     min_convertor_with_answer_test.find_and_convert_from_summaries('test')

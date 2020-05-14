@@ -71,7 +71,8 @@ def preprocess_html(story_str):
 def is_html(data_dir, story_id):
     with open(data_dir+"documents.csv", "r") as f:
         csv_reader = csv.reader(f, delimiter=',')
-        html = ["html" in row[3] for row in csv_reader if row[0]==story_id][0]
+        #html = [print("html" in row[3]) for row in csv_reader if len(row)==10 and row[0]==story_id][0]
+        html = ["html" in row[3] for row in csv_reader if len(row)==10 and row[0]==story_id][0]
     return html
 
 
