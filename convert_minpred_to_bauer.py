@@ -5,8 +5,8 @@ import nltk
 
 BAUER_TEST_FILE = "../CommonSenseMultiHopQA/data/narrative_qa_test.jsonl"
 NARRATIVEQA_FILE = "./data/narrativeqa/narrativeqa_all.eval"
-MIN_PREDICTIONS = "./data/output/min_predictions/min_with_answer2.jsonpredictions.json"
-OUTPUT_PRED = "../CommonSenseMultiHopQA/min_with_answer_pred.txt"
+MIN_PREDICTIONS = "./data/output/min_predictions/min_predall_trainedsumwithanswer_all.jsoon"
+OUTPUT_PRED = "../CommonSenseMultiHopQA/min_predall_trainedsumwithanswer_all_converted.txt"
 
 def main():
     dataset = convert_docs_in_dic(NARRATIVEQA_FILE)
