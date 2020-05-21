@@ -30,7 +30,7 @@ RANKING_BERT_WITHOUT_ANSWER = \
         ["./data/output/nqa_without_answer/nqa_predictions_without_answer0.tsv",
          "./data/output/nqa_without_answer/nqa_predictions_without_answer1.tsv",
          "./data/output/nqa_without_answer/nqa_predictions_without_answer2.tsv",
-         "./data/output/nqa_without_answer/nqa_predictions_without_answer3.tsv",
+        "./data/output/nqa_without_answer/nqa_predictions_without_answer3.tsv",
          "./data/output/nqa_without_answer/nqa_predictions_without_answer4.tsv",
          "./data/output/nqa_without_answer/nqa_predictions_without_answer5.tsv",
          "./data/output/nqa_without_answer/nqa_predictions_without_answer6.tsv",
@@ -43,13 +43,13 @@ RANKING_TFIDF = "./data/output/tfidf/tfidf_predictions.tsv"
 
 BAUER_FILE_WITH_ANSWER = "./data/narrativeqa/bauer_with_answer_format.jsonl"
 BAUER_FILE_WITHOUT_ANSWER = "./data/narrativeqa/bauer_without_answer_format.jsonl"
-MIN_FILE_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_summaries_with_answer_train.json"
-MIN_FILE_WITH_ANSWER_DEV = "./data/narrativeqa/min_summaries_with_answer_dev.json"
-MIN_FILE_WITH_ANSWER_TEST = "./data/narrativeqa/min_summaries_with_answer_test.json"
-MIN_FILE_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_summaries_without_answer_train.json"
-MIN_FILE_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_summaries_without_answer_dev.json"
-MIN_FILE_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_summaries_without_answer_test.json"
-ANNOTATION_FILE = "./data/narrativeqa/amt_6mai_2booktest.csv"
+MIN_ALL_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_all_without_answer_train.json"
+MIN_ALL_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_all_without_answer_dev.json"
+MIN_ALL_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_all_without_answer_test.json"
+MIN_BOOKS_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_books_without_answer_train.json"
+MIN_BOOKS_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_books_without_answer_dev.json"
+MIN_BOOKS_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_books_without_answer_test.json"
+ANNOTATION_FILE = "./data/narrativeqa/amt_19mai_2booktest.csv"
 
 def retrieve_doc_info(story_id):
     with open(DOCUMENTS_FILE, "r") as f:
@@ -104,7 +104,7 @@ class Convertor(object):
         self.n = n
         self.dataset = dataset
 
-    def find_and_convert(self, just_book=False, without_test=False):
+    def find_and_convert(self, just_book, train_dev_test):
         """
         Retrieve the n best paragraphs in a story based on a question
         """
@@ -127,10 +127,9 @@ class Convertor(object):
                             paragraphs_ids.append(row[1])
                         select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
                                 just_book else True
-                        select_test = self.dataset[story_id]['set'] != 'test' if \
-                                without_test else True
+                        select_set = self.dataset[story_id]['set'] == train_dev_test
 
-                        if eval(row[2]) == self.n and select_book and select_test : # and \
+                        if eval(row[2]) == self.n and select_book and select_set : # and \
 #                           len(set(paragraphs_ids)) == self.n:
                             context, query, answer1, answer2 = \
                                     self.extract_query_details(
@@ -300,32 +299,35 @@ def main():
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
 
-    min_convertor_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                             MIN_FILE_WITH_ANSWER_DEV, 3, dataset)
-    min_convertor_with_answer_dev.find_and_convert_from_summaries('valid')
-    print("Created", MIN_FILE_WITH_ANSWER_DEV)
+    min_without_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_BOOKS_WITHOUT_ANSWER_TRAIN, 3, dataset)
+    min_without_answer_train.find_and_convert(just_book=True, train_dev_test="train")
+    print("Created", MIN_BOOKS_WITHOUT_ANSWER_TRAIN)
 
-    min_convertor_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                             MIN_FILE_WITH_ANSWER_TRAIN, 3, dataset)
-    min_convertor_with_answer_train.find_and_convert_from_summaries('train')
-    print("Created", MIN_FILE_WITH_ANSWER_TRAIN)
-    min_convertor_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                             MIN_FILE_WITH_ANSWER_TEST, 3, dataset)
-    min_convertor_with_answer_test.find_and_convert_from_summaries('test')
-    print("Created", MIN_FILE_WITH_ANSWER_TEST)
+    min_without_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_BOOKS_WITHOUT_ANSWER_DEV, 3, dataset)
+    min_without_answer_dev.find_and_convert(just_book=True, train_dev_test="dev")
+    print("Created", MIN_BOOKS_WITHOUT_ANSWER_DEV)
+    
+    min_without_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_BOOKS_WITHOUT_ANSWER_TEST, 3, dataset)
+    min_without_answer_test.find_and_convert(just_book=True, train_dev_test="test")
+    
+    print("Created", MIN_BOOKS_WITHOUT_ANSWER_TEST)
+    min_without_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_ALL_WITHOUT_ANSWER_TRAIN, 3, dataset)
+    min_without_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_TRAIN)
 
-    min_convertor_no_answer_train = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                           MIN_FILE_WITHOUT_ANSWER_TRAIN, 3, dataset)
-    min_convertor_no_answer_train.find_and_convert_from_summaries('train')
-    print("Created", MIN_FILE_WITHOUT_ANSWER_TRAIN)
-    min_convertor_no_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                           MIN_FILE_WITHOUT_ANSWER_DEV, 3, dataset)
-    min_convertor_no_answer_dev.find_and_convert_from_summaries('valid')
-    print("Created", MIN_FILE_WITHOUT_ANSWER_VALID)
-    min_convertor_no_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                           MIN_FILE_WITHOUT_ANSWER_TEST, 3, dataset)
-    min_convertor_no_answer.find_and_convert_from_summaries('test')
-    print("Created", MIN_FILE_WITHOUT_ANSWER_TEST)
+    min_without_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_ALL_WITHOUT_ANSWER_DEV, 3, dataset)
+    min_without_answer_dev.find_and_convert(just_book=False, train_dev_test="dev")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV)
+    
+    min_without_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                        MIN_ALL_WITHOUT_ANSWER_TEST, 3, dataset)
+    min_without_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST)
     #all_ranking_files = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
     #+ RANKING_BERT_WITHOUT_ANSWER + \
     #        [RANKING_BM25, RANKING_TFIDF]
