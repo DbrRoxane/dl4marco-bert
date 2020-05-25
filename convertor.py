@@ -1,6 +1,7 @@
 import csv
 import jsonlines
 import nltk
+from nltk.corpus import stopwords
 import itertools
 import linecache
 import rouge as rouge_score
@@ -55,8 +56,13 @@ MIN_BOOKS_WITH_ANSWER_TEST = "./data/narrativeqa/min_books_with_answer_test.json
 MIN_BOOKS_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_books_without_answer_train.json"
 MIN_BOOKS_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_books_without_answer_dev.json"
 MIN_BOOKS_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_books_without_answer_test.json"
-ANNOTATION_FILE = "./data/narrativeqa/amt_19mai_2booktest.csv"
+MIN_SUM_WITH_ANSWER_DEV = "./data/narrativeqa/min_sums_with_answer_dev.json"
+MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_sums_with_answer_test.json"
+MIN_SUM_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_sums_without_answer_dev.json"
+MIN_SUM_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_sums_without_answer_test.json"
 
+ANNOTATION_TRAIN_FILE = "./data/narrativeqa/amt_22mai_2booktrain.csv"
+ANNOTATION_DEV_FILE ="./data/narrativeqa/amt_19mai_2bookdev.csv" 
 def retrieve_doc_info(story_id):
     with open(DOCUMENTS_FILE, "r") as f:
         csv_reader = csv.DictReader(f, delimiter=",")
@@ -204,8 +210,16 @@ class BauerConvertor(Convertor):
 
 
 class MinConvertor(Convertor):
-    def __init__(self, ranking_filename, converted_filename, n, dataset):
+    def __init__(self, ranking_filename, converted_filename, n, dataset, rouge_threshold, sw=True):
+        """
+        sw is True if we want to keep the stopwords, false otherwise
+        """
+
+        # sw False can lead to errors if the answer is only composed of stopwords ... 
+        # I suggest to let it true
         super().__init__(ranking_filename, converted_filename, n, dataset)
+        self.rouge_threshold = rouge_threshold
+        self.stopwords = set(stopwords.words('english')) if not sw else []
 
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
@@ -235,20 +249,25 @@ class MinConvertor(Convertor):
     def match_first_span(self, paragraph, subtext):
         size_ngram = len(subtext)
         subtext = [sub.replace('`', '\'') for sub in subtext]
-        paragraph = [par.replace('`', '\'') for par in paragraph]
+        paragraph = [par.replace('`', '\'') for par in paragraph \
+                     if par not in self.stopwords]
         start_index = [i for i, x in enumerate(paragraph) if x in subtext[0]]
         for i in start_index:
             if paragraph[i:i+size_ngram] == subtext:
                 return i, i+size_ngram-1
 
-    def find_likely_answer(self, paragraph, answer1, answer2, max_n=20, threshold=0.5):
+    def find_likely_answer(self, paragraph, answer1, answer2, max_n=20):
         """
         Knowing an answer, find spans in the paragraphs with high rouge score
         max_n is the biggest n-gram analyzed
         """
 
         previous_max_score = 0
-        subtext = paragraph
+        subtext = [token for token in paragraph if token not in self.stopwords]
+        answer1 = " ".join([token for token in nltk.word_tokenize(answer1) \
+                          if token not in self.stopwords])
+        answer2 = " ".join([token for token in nltk.word_tokenize(answer2) \
+                          if token not in self.stopwords])
         rouge = rouge_score.Rouge()
         max_n = min(max_n, len(paragraph))
         max_score = 0
@@ -261,14 +280,14 @@ class MinConvertor(Convertor):
             max_index_score = np.argmax(np.array(scores))
             max_score = scores[max_index_score]
             if previous_max_score > max_score or max_score == 0:
-                if previous_max_score < threshold or max_score == 0:
+                if previous_max_score < self.rouge_threshold or max_score == 0:
                     return []
                 index_start, index_end = self.match_first_span(paragraph, subtext)
                 return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
             subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
             previous_max_score = max_score
 
-        if max_score < threshold:
+        if max_score < self.rouge_threshold:
             return []
         index_start, index_end = self.match_first_span(paragraph, subtext)
         return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
@@ -302,6 +321,8 @@ class AnnotationConvertor(Convertor):
                                           'paragraph': paragraph})
 
 def main():
+    #all_ranking_files = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
+    
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
     
@@ -310,19 +331,54 @@ def main():
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                    MIN_ALL_WITH_ANSWER_TRAIN, 3, dataset)
+    #                                     MIN_ALL_WITH_ANSWER_TRAIN+"_r7",
+    #                                     3, dataset, rouge_threshold=0.7)
     #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN)
+    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_r7")
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_ALL_WITH_ANSWER_DEV+"_r7",
+    #                                     3, dataset, rouge_threshold=0.7)
+    #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_r7")
+
+    #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_ALL_WITH_ANSWER_TRAIN+"_r6",
+    #                                     3, dataset, rouge_threshold=0.6)
+    #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_r6")
+
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_ALL_WITH_ANSWER_DEV+"_r6",
+    #                                     3, dataset, rouge_threshold=0.6)
+    #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_r6")
 
     min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                        MIN_ALL_WITH_ANSWER_DEV, 3, dataset)
-    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="dev")
-    print("Created", MIN_ALL_WITH_ANSWER_DEV)
+                                         MIN_ALL_WITH_ANSWER_DEV+"stopword_r5",
+                                         3, dataset, rouge_threshold=0.5, sw=False)
+    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    print("Created", MIN_ALL_WITH_ANSWER_DEV+"stopword_r5")
+
+    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_ALL_WITH_ANSWER_TRAIN+"stopword_r5",
+                                         3, dataset, rouge_threshold=0.5, sw=False)
+    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"stopword_r5")
+
+
+
+
+
+
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                    MIN_ALL_WITH_ANSWER_DEV, 3, dataset)
+    #min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+    #print("Created", MIN_ALL_WITH_ANSWER_DEV)
     
-    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                        MIN_ALL_WITH_ANSWER_TEST, 3, dataset)
-    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    print("Created", MIN_ALL_WITH_ANSWER_TEST)
+    #min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                    MIN_ALL_WITH_ANSWER_TEST, 3, dataset)
+    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    #print("Created", MIN_ALL_WITH_ANSWER_TEST)
     
     #====== MIN WITHOUT ANSWER ALL ======
 
@@ -331,15 +387,15 @@ def main():
     #min_without_answer_train.find_and_convert(just_book=False, train_dev_test="train")
     #print("Created", MIN_ALL_WITHOUT_ANSWER_TRAIN)
 
-    min_without_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                        MIN_ALL_WITHOUT_ANSWER_DEV, 3, dataset)
-    min_without_answer_dev.find_and_convert(just_book=False, train_dev_test="dev")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV)
+    #min_without_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                    MIN_ALL_WITHOUT_ANSWER_DEV, 3, dataset)
+    #min_without_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    #print("Created", MIN_ALL_WITHOUT_ANSWER_DEV)
     
-    min_without_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                        MIN_ALL_WITHOUT_ANSWER_TEST, 3, dataset)
-    min_without_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST)
+    #min_without_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                    MIN_ALL_WITHOUT_ANSWER_TEST, 3, dataset)
+    #min_without_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    #print("Created", MIN_ALL_WITHOUT_ANSWER_TEST)
     
 
     #====== MIN WITH ANSWER BOOK ======
@@ -353,30 +409,35 @@ def main():
     #min_with_answer_dev.find_and_convert(just_book=True, train_dev_test="dev")
     #print("Created", MIN_BOOKS_WITH_ANSWER_DEV)
     
-    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                        MIN_BOOKS_WITH_ANSWER_TEST, 3, dataset)
-    min_with_answer_test.find_and_convert(just_book=True, train_dev_test="test")
-    print("Created", MIN_BOOKS_WITH_ANSWER_TEST)
+    #min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                    MIN_BOOKS_WITH_ANSWER_TEST, 3, dataset)
+    #min_with_answer_test.find_and_convert(just_book=True, train_dev_test="test")
+    #print("Created", MIN_BOOKS_WITH_ANSWER_TEST)
 
     #====== MIN WITHOUT ANSWER BOOK ======
 
-    min_without_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                        MIN_BOOKS_WITHOUT_ANSWER_DEV, 3, dataset)
-    min_without_answer_dev.find_and_convert(just_book=True, train_dev_test="dev")
-    print("Created", MIN_BOOKS_WITHOUT_ANSWER_DEV)
+    #min_without_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                    MIN_BOOKS_WITHOUT_ANSWER_DEV, 3, dataset)
+    #min_without_answer_dev.find_and_convert(just_book=True, train_dev_test="dev")
+    #print("Created", MIN_BOOKS_WITHOUT_ANSWER_DEV)
     
-    min_without_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                        MIN_BOOKS_WITHOUT_ANSWER_TEST, 3, dataset)
-    min_without_answer_test.find_and_convert(just_book=True, train_dev_test="test")
-    print("Created", MIN_BOOKS_WITHOUT_ANSWER_TEST)
+   # min_without_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+   #                                     MIN_BOOKS_WITHOUT_ANSWER_TEST, 3, dataset)
+   # min_without_answer_test.find_and_convert(just_book=True, train_dev_test="test")
+   # print("Created", MIN_BOOKS_WITHOUT_ANSWER_TEST)
     
     #all_ranking_files = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
     #+ RANKING_BERT_WITHOUT_ANSWER + \
     #        [RANKING_BM25, RANKING_TFIDF]
     #print(all_ranking_files)
-    #annotator_convertor = AnnotationConvertor(all_ranking_files, ANNOTATION_FILE, 2, dataset)
-    #annotator_convertor.find_and_convert(just_book=True, without_test=True)
-    #print("Created", ANNOTATION_FILE)
+    #annotator_train_convertor = AnnotationConvertor(all_ranking_files, ANNOTATION_TRAIN_FILE, 2, dataset)
+    #annotator_train_convertor.find_and_convert(just_book=True, train_dev_test="train")
+    #print("Created", ANNOTATION_TRAIN_FILE)
+
+    #annotator_dev_convertor = AnnotationConvertor(all_ranking_files, ANNOTATION_DEV_FILE, 2, dataset)
+    #annotator_dev_convertor.find_and_convert(just_book=True, train_dev_test="valid")
+    #print("Created", ANNOTATION_DEV_FILE)
+
 
 
 
