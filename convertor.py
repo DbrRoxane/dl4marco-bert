@@ -263,7 +263,9 @@ class MinConvertor(Convertor):
         """
 
         previous_max_score = 0
-        subtext = [token for token in paragraph if token not in self.stopwords]
+        paragraph = [token for token in paragraph if token not in self.stopwords]
+
+        subtext = paragraph
         answer1 = " ".join([token for token in nltk.word_tokenize(answer1) \
                           if token not in self.stopwords])
         answer2 = " ".join([token for token in nltk.word_tokenize(answer2) \
@@ -271,7 +273,10 @@ class MinConvertor(Convertor):
         rouge = rouge_score.Rouge()
         max_n = min(max_n, len(paragraph))
         max_score = 0
-        for i in reversed(range(1, max_n+1)):
+        answers = []
+        i = max_n
+        while i > 0 :
+        #for i in reversed(range(1, max_n+1)):
             n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
             scores = [score['rouge-l']['f']
                       for score in rouge.get_scores(n_grams, [answer1]*len(n_grams))]
@@ -279,18 +284,34 @@ class MinConvertor(Convertor):
                        for score in rouge.get_scores(n_grams, [answer2]*len(n_grams))]
             max_index_score = np.argmax(np.array(scores))
             max_score = scores[max_index_score]
+
+            #if the previous score was better than the actual, 
+            #it means that we have a better span and no need to fo further
+            #or if max_score=0, we know there is nothing interesting here
             if previous_max_score > max_score or max_score == 0:
                 if previous_max_score < self.rouge_threshold or max_score == 0:
-                    return []
+                    break
                 index_start, index_end = self.match_first_span(paragraph, subtext)
-                return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
-            subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
-            previous_max_score = max_score
+                answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
 
-        if max_score < self.rouge_threshold:
-            return []
-        index_start, index_end = self.match_first_span(paragraph, subtext)
-        return [{'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end}]
+                #once we find a good answer, we remove it from the initial paragraph
+                #and rerun the exploration
+                subtext = []
+                previous_max_score = 0
+                i = max_n
+                for j, token in enumerate(paragraph):
+                    if j < index_start and j > index_end:
+                        subtext.append(token)
+                    else:
+                        subtext.append("MASK")
+            else:
+                subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
+                previous_max_score = max_score
+                i -= 1
+
+        if len(answers)>1:
+            print(answers)
+        return answers
 
 
 
@@ -354,16 +375,16 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_r6")
 
     min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_ALL_WITH_ANSWER_DEV+"stopword_r5",
-                                         3, dataset, rouge_threshold=0.5, sw=False)
+                                         MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5",
+                                         3, dataset, rouge_threshold=0.5)
     min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    print("Created", MIN_ALL_WITH_ANSWER_DEV+"stopword_r5")
+    print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
     min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_ALL_WITH_ANSWER_TRAIN+"stopword_r5",
-                                         3, dataset, rouge_threshold=0.5, sw=False)
+                                         MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5",
+                                         3, dataset, rouge_threshold=0.5, sw=True)
     min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"stopword_r5")
+    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5")
 
 
 
