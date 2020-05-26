@@ -1,7 +1,6 @@
 import csv
 import jsonlines
 import nltk
-from nltk.corpus import stopwords
 import itertools
 import linecache
 import rouge as rouge_score
@@ -210,16 +209,10 @@ class BauerConvertor(Convertor):
 
 
 class MinConvertor(Convertor):
-    def __init__(self, ranking_filename, converted_filename, n, dataset, rouge_threshold, sw=True):
-        """
-        sw is True if we want to keep the stopwords, false otherwise
-        """
+    def __init__(self, ranking_filename, converted_filename, n, dataset, rouge_threshold):
 
-        # sw False can lead to errors if the answer is only composed of stopwords ... 
-        # I suggest to let it true
         super().__init__(ranking_filename, converted_filename, n, dataset)
         self.rouge_threshold = rouge_threshold
-        self.stopwords = set(stopwords.words('english')) if not sw else []
 
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
@@ -249,8 +242,7 @@ class MinConvertor(Convertor):
     def match_first_span(self, paragraph, subtext):
         size_ngram = len(subtext)
         subtext = [sub.replace('`', '\'') for sub in subtext]
-        paragraph = [par.replace('`', '\'') for par in paragraph \
-                     if par not in self.stopwords]
+        paragraph = [par.replace('`', '\'') for par in paragraph]
         start_index = [i for i, x in enumerate(paragraph) if x in subtext[0]]
         for i in start_index:
             if paragraph[i:i+size_ngram] == subtext:
@@ -263,18 +255,13 @@ class MinConvertor(Convertor):
         """
 
         previous_max_score = 0
-        paragraph = [token for token in paragraph if token not in self.stopwords]
-
-        subtext = paragraph
-        answer1 = " ".join([token for token in nltk.word_tokenize(answer1) \
-                          if token not in self.stopwords])
-        answer2 = " ".join([token for token in nltk.word_tokenize(answer2) \
-                          if token not in self.stopwords])
+        masked_paragraph = paragraph.copy()
+        subtext = paragraph.copy()
         rouge = rouge_score.Rouge()
         max_n = min(max_n, len(paragraph))
-        max_score = 0
         answers = []
         i = max_n
+        test="no"
         while i > 0 :
         #for i in reversed(range(1, max_n+1)):
             n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
@@ -291,26 +278,20 @@ class MinConvertor(Convertor):
             if previous_max_score > max_score or max_score == 0:
                 if previous_max_score < self.rouge_threshold or max_score == 0:
                     break
-                index_start, index_end = self.match_first_span(paragraph, subtext)
+                index_start, index_end = self.match_first_span(masked_paragraph, subtext)
                 answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
 
                 #once we find a good answer, we remove it from the initial paragraph
                 #and rerun the exploration
-                subtext = []
                 previous_max_score = 0
                 i = max_n
-                for j, token in enumerate(paragraph):
-                    if j < index_start and j > index_end:
-                        subtext.append(token)
-                    else:
-                        subtext.append("MASK")
+                for j in range(index_start, index_end+1):
+                    masked_paragraph[j] = "[MASK]"
+                subtext = masked_paragraph.copy()
             else:
                 subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
                 previous_max_score = max_score
                 i -= 1
-
-        if len(answers)>1:
-            print(answers)
         return answers
 
 
@@ -374,17 +355,24 @@ def main():
     #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
     #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_r6")
 
-    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5",
-                                         3, dataset, rouge_threshold=0.5)
-    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5",
+    #                                     3, dataset, rouge_threshold=0.5)
+    #min_with_answer_dev.find_and_convert(just_book=False,train_dev_test="valid")
+    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
-    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5",
-                                         3, dataset, rouge_threshold=0.5, sw=True)
-    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5")
+    
+    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_ALL_WITH_ANSWER_TEST+"_several_answers_r5",
+                                         5, dataset, rouge_threshold=0.5)
+    min_with_answer_dev.find_and_convert(just_book=False,train_dev_test="test")
+    print("Created", MIN_ALL_WITH_ANSWER_TEST+"_several_answers_r5")
+
+    #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5",
+    #                                     3, dataset, rouge_threshold=0.5, sw=True)
+    #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5")
 
 
 
