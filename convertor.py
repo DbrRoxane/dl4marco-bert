@@ -126,7 +126,7 @@ class Convertor(object):
             with open(ranking_filename, 'r') as ranking_file:
                 ranking_reader = csv.reader(ranking_file, delimiter="\t")
                 for row in ranking_reader:
-                    if len(row) in [3, 4] and eval(row[2]) in range(1, self.n+1):
+                    if len(row)==3 and eval(row[2]) in range(1, self.n+1):
                         if eval(row[2]) == 1:
                             query_id = row[0]
                             story_id, _ = query_id.split("_")
@@ -154,7 +154,7 @@ class Convertor(object):
                                          'answer1':answer1,
                                          'answer2':answer2}
                                 self.write_to_converted_file(converted_file, entry)
-        converted_file.close()
+        self.close_file(converted_file)
 
     def find_and_convert_from_summaries(self, train_dev_test):
         converted_file = self.open_file()
@@ -169,14 +169,16 @@ class Convertor(object):
                              'answer2':query_details['answer2']
                             }
                     self.write_to_converted_file(converted_file, entry)
-        converted_file.close()
+        self.close_file(converted_file)
 
     def open_file(self):
         pass
 
-    def write_to_converted_file(self, converted_file, entry):
+    def close_file(self, converted_file):
         pass
 
+    def write_to_converted_file(self, converted_file, entry):
+        pass
 
     def extract_query_details(self, story_id, query_id, paragraphs_id):
         context = [paragraph_str
@@ -199,6 +201,9 @@ class BauerConvertor(Convertor):
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
 
+    def close_file(self, converted_file):
+        converted_file.close()
+
     def write_to_converted_file(self, converted_file, entry):
         converted_file.write({'doc_num':entry['story_id'],
                               'summary':nltk.word_tokenize(entry['context'].lower()),
@@ -213,31 +218,42 @@ class MinConvertor(Convertor):
 
         super().__init__(ranking_filename, converted_filename, n, dataset)
         self.rouge_threshold = rouge_threshold
-
+        self.already_exists = {}
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
 
     def write_to_converted_file(self, converted_file, entry):
-        context = list()
-        answers = list()
-        final_answers = [entry['answer1'], entry['answer2']]
+        if entry['query_id'] not in self.already_exists.keys():
+            self.already_exists[entry['query_id']] = {
+                'query':entry['query'],
+                'final_answers':[entry['answer1'], entry['answer2']],
+                'context':list(),
+                'answers':list()}
         paragraphs = entry['context'].split("\n")
-        for paragraph in paragraphs : 
+        new_paragraphs = [paragraph for paragraph in paragraphs \
+                         if paragraph not in self.already_exists[
+                             entry['query_id']]['context']]
+        for paragraph in new_paragraphs:
             p_tokenized = nltk.word_tokenize(paragraph.replace('.',''))
             #remove point because generate errors because of rouge code
-            context.append(p_tokenized)
             answer_dic = self.find_likely_answer(p_tokenized,
                                                  entry['answer1'],
                                                  entry['answer2'])
             if answer_dic != []:
                 answer_text = answer_dic[0]['text']
-                final_answers.append(answer_text)
-            answers.append(answer_dic)
-        converted_file.write({'id':entry['query_id'],
-                              'question' :entry['query'],
-                              'context':context,
-                              'answers':answers,
-                              'final_answers':final_answers})
+                self.already_exists[entry['query_id']]['final_answers'].append(answer_text)
+            self.already_exists[entry['query_id']]['context'].append(p_tokenized)
+            self.already_exists[entry['query_id']]['answers'].append(answer_dic)
+
+    def close_file(self, converted_file):
+        for k,v in self.already_exists.items():
+            converted_file.write({'id':k,
+                                  'question' :v['query'],
+                                  'context':v['context'],
+                                  'answers':v['answers'],
+                                  'final_answers':v['final_answers']})
+
+        converted_file.close()
 
     def match_first_span(self, paragraph, subtext):
         size_ngram = len(subtext)
@@ -322,12 +338,16 @@ class AnnotationConvertor(Convertor):
                                           'answers': answers,
                                           'paragraph': paragraph})
 
+    def close_file(self, converted_file):
+        converted_file.close()
 def main():
-    #all_ranking_files = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
     
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
     
+    ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
+            RANKING_BERT_WITHOUT_ANSWER + \
+            [RANKING_BM25, RANKING_TFIDF]
 
     #====== MIN WITH ANSWER ALL ======
 
@@ -362,11 +382,24 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
     
-    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_ALL_WITH_ANSWER_TEST+"_several_answers_r5",
-                                         5, dataset, rouge_threshold=0.5)
-    min_with_answer_dev.find_and_convert(just_book=False,train_dev_test="test")
+    min_with_answer_test = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r5",
+                                         3, dataset, rouge_threshold=0.5)
+    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
     print("Created", MIN_ALL_WITH_ANSWER_TEST+"_several_answers_r5")
+
+    min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_severalanswers_r5",
+                                         3, dataset, rouge_threshold=0.5)
+    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_severalanswers_r5")
+
+    min_with_answer_train = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r5",
+                                         3, dataset, rouge_threshold=0.5)
+    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r5")
+
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
     #                                     MIN_ALL_WITH_ANSWER_TRAIN+"_several_answers_r5",
