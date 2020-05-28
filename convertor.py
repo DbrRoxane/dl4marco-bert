@@ -307,6 +307,11 @@ class MinConvertor(Convertor):
                 subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
                 previous_max_score = max_score
                 i -= 1
+
+        if max_score >= self.rouge_threshold:
+            index_start, index_end = self.match_first_span(masked_paragraph, subtext)
+            answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
+
         return answers
 
 
@@ -347,6 +352,8 @@ def main():
     ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
             [RANKING_BM25, RANKING_TFIDF] +\
             RANKING_BERT_WITHOUT_ANSWER
+
+    ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
 
 
     #====== MIN SUM ALL ANSWERS ======
@@ -404,23 +411,23 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
  
-    #min_with_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-    #                                     MIN_ALL_WITHOUT_ANSWER_TEST+"_bert_severalanswers_r5",
-    #                                     10, dataset, rouge_threshold=0.5)
-    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    #print("Created", MIN_ALL_WITHOUR_ANSWER_TEST+"_bert__severalanswers_r5")
+    min_with_answer_test = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITHOUT_ANSWER_TEST+"_allrankingtech_severalanswers_r5_28mai",
+                                         3, dataset, rouge_threshold=0.5)
+    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    print("Created", MIN_ALL_WITHOUR_ANSWER_TEST+"_allrankingtech_severalanswers_r5_28mai")
 
-    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-    #                                     MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_severalanswers_r5",
-    #                                     10, dataset, rouge_threshold=0.5)
-    #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_bert_severalanswers_r5")
+    min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITHOUT_ANSWER_DEV+"_allrankingtech_severalanswers_r5_29mai",
+                                         3, dataset, rouge_threshold=0.5)
+    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_severalanswers_r5_28mai")
 
-    #min_with_answer_train = MinConvertor(ALL_RANKING_FILE,
-    #                                    MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r5",
-    #                                    3, dataset, rouge_threshold=0.5)
-    #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    #print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r5")
+    min_with_answer_train = MinConvertor(ORACLE_BERT_BM25,
+                                        MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r6",
+                                        3, dataset, rouge_threshold=0.6)
+    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r6")
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
