@@ -55,11 +55,9 @@ MIN_BOOKS_WITH_ANSWER_TEST = "./data/narrativeqa/min_books_with_answer_test.json
 MIN_BOOKS_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_books_without_answer_train.json"
 MIN_BOOKS_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_books_without_answer_dev.json"
 MIN_BOOKS_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_books_without_answer_test.json"
-MIN_SUM_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_sums_with_answer_train.json"
-MIN_SUM_WITH_ANSWER_DEV = "./data/narrativeqa/min_sums_with_answer_dev.json"
-MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_sums_with_answer_test.json"
-MIN_SUM_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_sums_without_answer_dev.json"
-MIN_SUM_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_sums_without_answer_test.json"
+MIN_SUM_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_sums_train.json"
+MIN_SUM_WITH_ANSWER_DEV = "./data/narrativeqa/min_sums_dev.json"
+MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_sums_test.json"
 
 ANNOTATION_TRAIN_FILE = "./data/narrativeqa/amt_22mai_2booktrain.csv"
 ANNOTATION_DEV_FILE ="./data/narrativeqa/amt_19mai_2bookdev.csv" 
@@ -347,29 +345,29 @@ def main():
     print("Created dataset")
 
     ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
-            RANKING_BERT_WITHOUT_ANSWER + \
-            [RANKING_BM25, RANKING_TFIDF]
+            [RANKING_BM25, RANKING_TFIDF] +\
+            RANKING_BERT_WITHOUT_ANSWER
 
 
     #====== MIN SUM ALL ANSWERS ======
 
-   # min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-   #                                      MIN_SUM_WITH_ANSWER_TRAIN+"_r5",
-   #                                      3, dataset, rouge_threshold=0.5)
-   # min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
-   # print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r5")
-   # 
-   # min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-   #                                      MIN_SUM_WITH_ANSWER_DEV+"_r5",
-   #                                      3, dataset, rouge_threshold=0.5)
-    #min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
-    #print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r5")
+    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_DEV+"_r6",
+                                         3, dataset, rouge_threshold=0.6)
+   min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+   print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
 
-    #min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                     MIN_SUM_WITH_ANSWER_TEST+"_r5",
-    #                                     3, dataset, rouge_threshold=0.5)
-    #min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
-    #print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r5")
+    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_TEST+"_r6",
+                                         3, dataset, rouge_threshold=0.6)
+    min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
+    print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
+
+    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_TRAIN+"_r6",
+                                         3, dataset, rouge_threshold=0.6)
+    min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
+    print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
 
 
 
@@ -406,21 +404,21 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
  
-    min_with_answer_test = MinConvertor(ALL_RANKING_FILE,
-                                         MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r5",
-                                         3, dataset, rouge_threshold=0.5)
-    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    print("Created", MIN_ALL_WITH_ANSWER_TEST+"_several_answers_r5")
+    #min_with_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                     MIN_ALL_WITHOUT_ANSWER_TEST+"_bert_severalanswers_r5",
+    #                                     10, dataset, rouge_threshold=0.5)
+    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    #print("Created", MIN_ALL_WITHOUR_ANSWER_TEST+"_bert__severalanswers_r5")
 
-    #min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
-    #                                     MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_severalanswers_r5",
-    #                                     3, dataset, rouge_threshold=0.5)
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                     MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_severalanswers_r5",
+    #                                     10, dataset, rouge_threshold=0.5)
     #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_severalanswers_r5")
+    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_bert_severalanswers_r5")
 
     #min_with_answer_train = MinConvertor(ALL_RANKING_FILE,
-    #                                     MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r5",
-    #                                     3, dataset, rouge_threshold=0.5)
+    #                                    MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r5",
+    #                                    3, dataset, rouge_threshold=0.5)
     #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
     #print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r5")
 
