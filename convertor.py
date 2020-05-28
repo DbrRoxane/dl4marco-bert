@@ -354,8 +354,8 @@ def main():
     min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
                                          MIN_SUM_WITH_ANSWER_DEV+"_r6",
                                          3, dataset, rouge_threshold=0.6)
-   min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
-   print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
+    min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+    print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
 
     min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
                                          MIN_SUM_WITH_ANSWER_TEST+"_r6",
