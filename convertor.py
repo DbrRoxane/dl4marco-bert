@@ -411,23 +411,23 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
  
-    min_with_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                         MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6",
-                                         20, dataset, rouge_threshold=0.6)
-    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6")
+    #min_with_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+    #                                     MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6",
+    #                                     20, dataset, rouge_threshold=0.6)
+    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    #print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6")
 
-    min_with_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                         MIN_ALL_WITHOUT_ANSWER_DEV+"_realwithout_r6",
-                                         20, dataset, rouge_threshold=0.6)
+    min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
+                                         MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r6_3para",
+                                         3, dataset, rouge_threshold=0.6)
     min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV+"_realwithout_r6")
+    print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r6_3para")
 
-    #min_with_answer_train = MinConvertor(ORACLE_BERT_BM25,
-    #                                    MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_severalanswers_r6",
-    #                                    3, dataset, rouge_threshold=0.6)
-    #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    #print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_severalanswers_r6")
+    min_with_answer_train = MinConvertor(ORACLE_BERT_BM25,
+                                        MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_r6_3para",
+                                        3, dataset, rouge_threshold=0.6)
+    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_allrankingtech_r6_3para")
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
