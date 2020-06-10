@@ -43,24 +43,27 @@ RANKING_TFIDF = "./data/output/tfidf/tfidf_predictions.tsv"
 
 BAUER_FILE_WITH_ANSWER = "./data/narrativeqa/bauer_with_answer_format.jsonl"
 BAUER_FILE_WITHOUT_ANSWER = "./data/narrativeqa/bauer_without_answer_format.jsonl"
-MIN_ALL_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_all_with_answer_train.json"
-MIN_ALL_WITH_ANSWER_DEV = "./data/narrativeqa/min_all_with_answer_dev.json"
-MIN_ALL_WITH_ANSWER_TEST = "./data/narrativeqa/min_all_with_answer_test.json"
-MIN_ALL_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_all_without_answer_train.json"
-MIN_ALL_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_all_without_answer_dev.json"
-MIN_ALL_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_all_without_answer_test.json"
-MIN_BOOKS_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_books_with_answer_train.json"
-MIN_BOOKS_WITH_ANSWER_DEV = "./data/narrativeqa/min_books_with_answer_dev.json"
-MIN_BOOKS_WITH_ANSWER_TEST = "./data/narrativeqa/min_books_with_answer_test.json"
-MIN_BOOKS_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_books_without_answer_train.json"
-MIN_BOOKS_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_books_without_answer_dev.json"
-MIN_BOOKS_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_books_without_answer_test.json"
-MIN_SUM_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_sums_train.json"
-MIN_SUM_WITH_ANSWER_DEV = "./data/narrativeqa/min_sums_dev.json"
-MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_sums_test.json"
+MIN_ALL_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_final/min_all_with_answer_train.json"
+MIN_ALL_WITH_ANSWER_DEV = "./data/narrativeqa/min_final/min_all_with_answer_dev.json"
+MIN_ALL_WITH_ANSWER_TEST = "./data/narrativeqa/min_final/min_all_with_answer_test.json"
+MIN_ALL_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_final/min_all_without_answer_train.json"
+MIN_ALL_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_final/min_all_without_answer_dev.json"
+MIN_ALL_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_final/min_all_without_answer_test.json"
+MIN_BOOKS_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_final/min_books_with_answer_train.json"
+MIN_BOOKS_WITH_ANSWER_DEV = "./data/narrativeqa/min_final/min_books_with_answer_dev.json"
+MIN_BOOKS_WITH_ANSWER_TEST = "./data/narrativeqa/min_final/min_books_with_answer_test.json"
+MIN_BOOKS_WITHOUT_ANSWER_TRAIN = "./data/narrativeqa/min_final/min_books_without_answer_train.json"
+MIN_BOOKS_WITHOUT_ANSWER_DEV = "./data/narrativeqa/min_final/min_books_without_answer_dev.json"
+MIN_BOOKS_WITHOUT_ANSWER_TEST = "./data/narrativeqa/min_final/min_books_without_answer_test.json"
+MIN_SUM_WITH_ANSWER_TRAIN = "./data/narrativeqa/min_final/min_sums_train.json"
+MIN_SUM_WITH_ANSWER_DEV = "./data/narrativeqa/min_final/min_sums_dev.json"
+MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_final/min_sums_test.json"
 
 ANNOTATION_TRAIN_FILE = "./data/narrativeqa/amt_22mai_2booktrain.csv"
 ANNOTATION_DEV_FILE ="./data/narrativeqa/amt_19mai_2bookdev.csv" 
+def process_str(string):
+    return string.lower().encode("utf-8").replace("\n", "")
+
 def retrieve_doc_info(story_id):
     with open(DOCUMENTS_FILE, "r") as f:
         csv_reader = csv.DictReader(f, delimiter=",")
@@ -74,7 +77,7 @@ def retrieve_summary(story_id):
         csv_reader = csv.DictReader(f, delimiter=",")
         for row in csv_reader:
             if row['document_id'] == story_id:
-                return row['summary'].replace("\n", "")
+                return process_str(row['summary'])
 
 def convert_docs_in_dic(file_name):
     with open(file_name, "r", encoding="ascii", errors="ignore") as f:
@@ -91,11 +94,11 @@ def convert_docs_in_dic(file_name):
                                      'set':train_dev_test, 'kind':book_movie}
             paragraph_id = row[1]
             if paragraph_id not in dataset[story_id]['paragraphs'].keys():
-                pargraph = row[3]
+                pargraph = process_str(row[3])
                 dataset[story_id]['paragraphs'][paragraph_id] = pargraph
             if query_id not in dataset[story_id]['queries'].keys():
-                query = row[2]
-                answer1, answer2 = row[4], row[5]
+                query = process_str(row[2])
+                answer1, answer2 = process_str(row[4]), process_str(row[5])
                 dataset[story_id]['queries'][query_id] = {
                     'query': query,
                     'answer1' : answer1,
@@ -349,32 +352,32 @@ def main():
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
 
-    ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
-            [RANKING_BM25, RANKING_TFIDF] +\
-            RANKING_BERT_WITHOUT_ANSWER
+    #ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
+    #        [RANKING_BM25, RANKING_TFIDF] +\
+    #        RANKING_BERT_WITHOUT_ANSWER
 
-    ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
+    #ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
 
 
     #====== MIN SUM ALL ANSWERS ======
 
-    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                     MIN_SUM_WITH_ANSWER_DEV+"_r6",
-    #                                     3, dataset, rouge_threshold=0.6)
-    #min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
-    #print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
+    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed",
+                                         3, dataset, rouge_threshold=0.6)
+    min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+    print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
 
-    #min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                     MIN_SUM_WITH_ANSWER_TEST+"_r6",
-    #                                     3, dataset, rouge_threshold=0.6)
-    #min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
-    #print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
+    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed",
+                                         3, dataset, rouge_threshold=0.6)
+    min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
+    print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
 
-    #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-    #                                     MIN_SUM_WITH_ANSWER_TRAIN+"_r6",
-    #                                     3, dataset, rouge_threshold=0.6)
-    #min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
-    #print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
+    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+                                         MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed",
+                                         3, dataset, rouge_threshold=0.6)
+    min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
+    print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
 
 
 
