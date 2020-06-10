@@ -3,7 +3,7 @@ import csv
 import re
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
-
+import nltk
 
 CHUNK_SIZE = 1500
 NQA_DIR = "./data/narrativeqa/"
@@ -13,22 +13,45 @@ def chunk_story(story_str, chunk_size):
 
 def show_chunks_size(stories):
     nb_chunks = []
-    size_chunks = []
+    size_chunks_char = []
+    size_chunks_tokens = []
     for story_chunks in stories.values():
         nb_chunks.append(len(story_chunks))
         for chunk in story_chunks:
-            size_chunks.append(len(chunk))
-    plt.figure()
+            size_chunks_char.append(len(chunk))
+            tokens = nltk.word_tokenize(chunk)
+            size_chunks_tokens.append(len(tokens))
 
-    plt.subplot(121)
-    plt.hist(nb_chunks, bins=10)
-    plt.xlabel("number of chunks per book")
-    plt.savefig("./chunks_per_book.png")
+    datas = [nb_chunks, size_chunks_char, size_chunks_tokens]
+    xlabels = ["Number of chunks per story",
+               "Number of characters per chunk",
+               "Number of tokens per chunk"]
+    ylims = [(0,1000), (0,150000), (0,150000)]
+    binss = [range(0,800, 50), range(1000,3002, 100), range(200,502, 50)]
+    colors = ['green', 'orange', 'blue']
 
-    plt.subplot(122)
-    plt.hist(size_chunks, bins=list(range(1,3502, 500)))
-    plt.xlabel("size of each chunk")
-    plt.savefig("./chunk_size.png")
+    fig, a = plt.subplots(3,1)
+    a = a.ravel()
+    for idx,ax in enumerate(a):
+        ax.hist(datas[idx], bins=binss[idx], color=colors[idx])
+        ax.set_xlabel(xlabels[idx])
+        ax.set_ylim(ylims[idx])
+    plt.tight_layout()
+
+    #ax1 = fig.add_subplot(311)
+    #ax1.hist(nb_chunks, bins=10, color='green')
+    #ax1.set(xlabel="Number of chunks per story")
+
+    #ax2 = fig.add_subplot(312)
+    #ax2.hist(size_chunks_char, bins=list(range(1,3502, 500)), color='orange')
+    #ax2.set(xlabel="Number of characters per chunk", ylim=(0,250000))
+
+    #ax3 = fig.add_subplot(313)
+    #ax3.hist(size_chunks_tokens, bins=list(range(1,502, 100)), color='blue')
+    #ax3.set(xlabel="Number of tokens per chunk", ylim=(0,250000))
+
+    plt.savefig("./stat_chunks.png")
+
 
 def chunk_story_paragraphs(story_id, data_dir):
     story_file = NQA_DIR + "tmp/" + story_id + ".content"
@@ -112,9 +135,9 @@ def extract_data_entries(data_dir, gather_char_min):
 if __name__=="__main__":
     print("Start processing data")
     entries = extract_data_entries(NQA_DIR, gather_char_min=True)
-    fieldnames = entries[0].keys()
-    print("Finished processing. Now write data in {}narrativeqa_all.eval".format(NQA_DIR))
-    with open(NQA_DIR+"narrativeqa_all.eval", "w", newline='') as writer:
-        dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
-        dict_writer.writerows(entries)
+    #fieldnames = entries[0].keys()
+    #print("Finished processing. Now write data in {}narrativeqa_all.eval".format(NQA_DIR))
+    #with open(NQA_DIR+"narrativeqa_all.eval", "w", newline='') as writer:
+    #    dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
+    #    dict_writer.writerows(entries)
 
