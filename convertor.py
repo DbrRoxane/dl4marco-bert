@@ -61,8 +61,9 @@ MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_final/min_sums_test.json"
 
 ANNOTATION_TRAIN_FILE = "./data/narrativeqa/amt_22mai_2booktrain.csv"
 ANNOTATION_DEV_FILE ="./data/narrativeqa/amt_19mai_2bookdev.csv" 
+
 def process_str(string):
-    return string.lower().encode("utf-8").replace("\n", "")
+    return str(string.lower().replace("\n", "").encode("utf-8"))
 
 def retrieve_doc_info(story_id):
     with open(DOCUMENTS_FILE, "r") as f:
@@ -361,23 +362,23 @@ def main():
 
     #====== MIN SUM ALL ANSWERS ======
 
-    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed",
-                                         3, dataset, rouge_threshold=0.6)
-    min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
-    print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
-
-    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed",
-                                         3, dataset, rouge_threshold=0.6)
-    min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
-    print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
-
-    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-                                         MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed",
-                                         3, dataset, rouge_threshold=0.6)
-    min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
-    print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
+#    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+#                                         MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed",
+#                                         3, dataset, rouge_threshold=0.6)
+#    min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+#    print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
+#
+#    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+#                                         MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed",
+#                                         3, dataset, rouge_threshold=0.6)
+#    min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
+#    print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
+#
+#    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+#                                         MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed",
+#                                         3, dataset, rouge_threshold=0.6)
+#    min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
+#    print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
 
 
 

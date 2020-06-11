@@ -17,7 +17,7 @@ BAUER_FILE = [
 #    "../CommonSenseMultiHopQA/data/narrative_qa_valid.jsonl",
 #    "../CommonSenseMultiHopQA/data/narrative_qa_test.jsonl",
     "../CommonSenseMultiHopQA/data/narrative_qa_valid.jsonl",
-    "../CommonSenseMultiHopQA/data/narrative_qa_test.jsonl",
+#    "../CommonSenseMultiHopQA/data/narrative_qa_test.jsonl",
 ]
 NARRATIVEQA_FILE = "./data/narrativeqa/narrativeqa_all.eval"
 MIN_PREDICTIONS = [
@@ -45,12 +45,14 @@ MIN_PREDICTIONS = [
 #    "../data/output/P3-P2_CRNAE/trainP3-P2_testCRCAE_3para_r5_oralce_test18mai_predictions.json",
 #    "../data/output/P3-P2_CRNAE/trainP3-P2_testCRNAE_3para_r5_final_dev18mai_predictions.json",
 #    "../data/output/P3-P2_CRNAE/trainP3-P2_testCRNAE_3para_r5_final_test18mai_predictions.json",
-    "../data/output/P3noP2_CRNAE/NRNAE_20para_r6_dev_predictions.json",
-    "../data/output/P3noP2_CRNAE/NRNAE_20para_r6_test_predictions.json",
-
+#    "../data/output/P3noP2_CRNAE/NRNAE_20para_r6_dev_predictions.json",
+#    "../data/output/P3noP2_CRNAE/NRNAE_20para_r6_test_predictions.json",
+     "../data/output/P1_SUM_preprocess/SUM_r6_testpredictions.json",
+#    "../data/output/P1_SUM_preprocess/SUM_r6_testpredictions.json",
 ]
 
 OUTPUT_PRED = [
+     "../CommonSenseMultiHopQA/paper_results/P1_SUM_preprocesstrain_testSUM_r6_devpredictions.txt"
 #    "../CommonSenseMultiHopQA/paper_results/P2_CRCAEtrain_testCRCAE_allranking_3para_r5_dev_predictions.txt",
 #    "../CommonSenseMultiHopQA/paper_results/P2_CRCAEtrain_testCRCAE_allranking_3para_r5_test_predictions.txt",
 #    "../CommonSenseMultiHopQA/paper_results/P2_CRCAEtrain_testCRNAE_allranking_3para_r5_dev_predictions.txt",
@@ -75,8 +77,8 @@ OUTPUT_PRED = [
 #    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testCRCAE_5para_r5_oralce_test18mai_predictions.txt",
 #    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testCRNAE_5para_r5_final_dev18mai_predictions.txt",
 #    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testCRNAE_5para_r5_final_test18mai_predictions.txt",
-    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testNRNAE_15para_r6_dev_nbest_predictions.txt",
-    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testNRNAE_15para_r6_test_nbest_predictions.txt",
+#    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testNRNAE_15para_r6_dev_nbest_predictions.txt",
+#    "../CommonSenseMultiHopQA/paper_results/trainP3-P2_testNRNAE_15para_r6_test_nbest_predictions.txt",
 ]
 
 def convert(dataset, input_file, output_file, bauer, n=0):
@@ -101,6 +103,6 @@ if __name__=="__main__":
     print(len(MIN_PREDICTIONS),len(OUTPUT_PRED),len(BAUER_FILE))
     assert len(MIN_PREDICTIONS)==len(OUTPUT_PRED)==len(BAUER_FILE)
     dataset = convert_docs_in_dic(NARRATIVEQA_FILE)
-    n=[2,2]
+    n=[1]
     for i in range(len(MIN_PREDICTIONS)):
         convert(dataset, MIN_PREDICTIONS[i], OUTPUT_PRED[i], BAUER_FILE[i], n[i])
