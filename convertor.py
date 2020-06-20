@@ -7,6 +7,7 @@ import rouge as rouge_score
 import numpy as np
 import time
 import sys
+import tokenization
 
 csv.field_size_limit(sys.maxsize)
 
@@ -39,6 +40,7 @@ RANKING_BERT_WITHOUT_ANSWER = \
         ]
 
 RANKING_BM25 = "./data/output/bm25/bm25_predictions.tsv"
+RANKING_BM25_without = "./data/output/bm25/bm25_predictions_without_answer.tsv"
 RANKING_TFIDF = "./data/output/tfidf/tfidf_predictions.tsv"
 
 BAUER_FILE_WITH_ANSWER = "./data/narrativeqa/bauer_with_answer_format.jsonl"
@@ -62,8 +64,18 @@ MIN_SUM_WITH_ANSWER_TEST = "./data/narrativeqa/min_final/min_sums_test.json"
 ANNOTATION_TRAIN_FILE = "./data/narrativeqa/amt_22mai_2booktrain.csv"
 ANNOTATION_DEV_FILE ="./data/narrativeqa/amt_19mai_2bookdev.csv" 
 
-def process_str(string):
-    return str(string.lower().replace("\n", "").encode("utf-8"))
+tokenizer = tokenization.BasicTokenizer()
+
+def process_str2(text):
+    import string
+    return ''.join(char.lower() \
+                   for char in text \
+                    if char in string.printable \
+                or char != '`')
+
+def process_str(text):
+    return " ".join(tokenizer.tokenize(text))
+
 
 def retrieve_doc_info(story_id):
     with open(DOCUMENTS_FILE, "r") as f:
@@ -117,6 +129,7 @@ class Convertor(object):
         self.converted_filename = converted_filename
         self.n = n
         self.dataset = dataset
+        self.tokenizer = tokenization.BasicTokenizer()
 
     def find_and_convert(self, just_book, train_dev_test):
         """
@@ -209,10 +222,10 @@ class BauerConvertor(Convertor):
 
     def write_to_converted_file(self, converted_file, entry):
         converted_file.write({'doc_num':entry['story_id'],
-                              'summary':nltk.word_tokenize(entry['context'].lower()),
-                              'ques':nltk.word_tokenize(entry['query'].lower()),
-                              'answer1':nltk.word_tokenize(entry['answer1'].lower()),
-                              'answer2':nltk.word_tokenize(entry['answer2'].lower()),
+                              'summary':self.tokenizer.tokenize(entry['context']),
+                              'ques':self.tokenizer.tokenize(entry['query']),
+                              'answer1':self.tokenizer.tokenize(entry['answer1']),
+                              'answer2':self.tokenizer.tokenize(entry['answer2']),
                               'commonsense':[]})
 
 
@@ -237,7 +250,7 @@ class MinConvertor(Convertor):
                          if paragraph not in self.already_exists[
                              entry['query_id']]['context']]
         for paragraph in new_paragraphs:
-            p_tokenized = nltk.word_tokenize(paragraph.replace('.',''))
+            p_tokenized = self.tokenizer.tokenize(paragraph.replace('.',''))
             #remove point because generate errors because of rouge code
             answer_dic = self.find_likely_answer(p_tokenized,
                                                  entry['answer1'],
@@ -266,6 +279,10 @@ class MinConvertor(Convertor):
         for i in start_index:
             if paragraph[i:i+size_ngram] == subtext:
                 return i, i+size_ngram-1
+        print(paragraph)
+        print(subtext)
+        print(start_index)
+        return None, None
 
     def find_likely_answer(self, paragraph, answer1, answer2, max_n=20):
         """
@@ -298,6 +315,8 @@ class MinConvertor(Convertor):
                 if previous_max_score < self.rouge_threshold or max_score == 0:
                     break
                 index_start, index_end = self.match_first_span(masked_paragraph, subtext)
+                if not index_start and not index_end:
+                    break
                 answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
 
                 #once we find a good answer, we remove it from the initial paragraph
@@ -308,14 +327,16 @@ class MinConvertor(Convertor):
                     masked_paragraph[j] = "MASK"
                 subtext = masked_paragraph.copy()
             else:
-                subtext = nltk.word_tokenize(n_grams[max_index_score % len(n_grams)])
+                subtext = self.tokenizer.tokenize(n_grams[max_index_score % len(n_grams)])
                 previous_max_score = max_score
                 i -= 1
 
         if max_score >= self.rouge_threshold:
             index_start, index_end = self.match_first_span(masked_paragraph, subtext)
-            answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
+            if index_start:
+                answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
 
+        print(answers)
         return answers
 
 
@@ -353,36 +374,70 @@ def main():
     dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
     print("Created dataset")
 
-    #ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
-    #        [RANKING_BM25, RANKING_TFIDF] +\
-    #        RANKING_BERT_WITHOUT_ANSWER
+    ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
+            [RANKING_BM25, RANKING_TFIDF] +\
+            RANKING_BERT_WITHOUT_ANSWER
 
-    #ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
+    ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
 
+    BERT_BM25_WITHOUT = RANKING_BERT_WITHOUT_ANSWER + [RANKING_BM25_without]
 
     #====== MIN SUM ALL ANSWERS ======
 
-#    min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
-#                                         MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed",
-#                                         3, dataset, rouge_threshold=0.6)
-#    min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
-#    print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6")
-#
-#    min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
-#                                         MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed",
-#                                         3, dataset, rouge_threshold=0.6)
-#    min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
-#    print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6")
-#
-#    min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
-#                                         MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed",
-#                                         3, dataset, rouge_threshold=0.6)
-#    min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
-#    print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6")
+    #min_with_answer_dev = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed2",
+    #                                     3, dataset, rouge_threshold=0.6)
+    #min_with_answer_dev.find_and_convert_from_summaries(train_dev_test="valid")
+    #print("Created", MIN_SUM_WITH_ANSWER_DEV+"_r6_preprocessed2")
+
+    #min_with_answer_test = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed2",
+    #                                     3, dataset, rouge_threshold=0.6)
+    #min_with_answer_test.find_and_convert_from_summaries(train_dev_test="test")
+    #print("Created", MIN_SUM_WITH_ANSWER_TEST+"_r6_preprocessed2")
+
+    #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
+    #                                     MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed2",
+    #                                     3, dataset, rouge_threshold=0.6)
+    #min_with_answer_train.find_and_convert_from_summaries(train_dev_test="train")
+    #print("Created", MIN_SUM_WITH_ANSWER_TRAIN+"_r6_preprocessed2")
 
 
 
     #====== MIN WITH ANSWER ALL ======
+
+    #min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
+    #                                     MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r5_3para_preprocessed2",
+    #                                     3, dataset, rouge_threshold=0.5)
+    #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r6_3para")
+
+    #min_with_answer_test = MinConvertor(ALL_RANKING_FILE,
+    #                                     MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_r5_3para_preprocessed2",
+    #                                     3, dataset, rouge_threshold=0.5)
+    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    #print("Created", MIN_ALL_WITH_ANSWER_TEST+"_allrankingtech_r6_3para_preprocessed2")
+
+    #min_with_answer_train = MinConvertor(ORACLE_BERT_BM25,
+    #                                    MIN_ALL_WITH_ANSWER_TRAIN+"_bertbm25oracle_r6_3para_preprocessed2",
+    #                                    3, dataset, rouge_threshold=0.6)
+    #min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
+    #print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_bertbm25oracle_r6_3para_preprocessed2")
+
+
+    #====== MIN WITHOUT ANSWER BERT =======
+
+    min_with_answer_test = MinConvertor(BERT_BM25_WITHOUT,
+                                         MIN_ALL_WITHOUT_ANSWER_TEST+"_bertbm25_r6_20para_preprocessed2",
+                                         20, dataset, rouge_threshold=0.6)
+    min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_bert_r6_20para_preprocessed2")
+
+    min_with_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
+                                         MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_r6_20para_preprocessed2",
+                                         20, dataset, rouge_threshold=0.6)
+    min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_r6_20para_preprocessed2")
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
@@ -415,23 +470,6 @@ def main():
     #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_several_answers_r5")
 
  
-    #min_with_answer_test = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-    #                                     MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6",
-    #                                     20, dataset, rouge_threshold=0.6)
-    #min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    #print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_realwithout_r6")
-
-    #min_with_answer_dev = MinConvertor(ALL_RANKING_FILE,
-    #                                     MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r5_3para",
-    #                                     3, dataset, rouge_threshold=0.5)
-    #min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    #print("Created", MIN_ALL_WITH_ANSWER_DEV+"_allrankingtech_r6_3para")
-
-    min_with_answer_train = MinConvertor(ORACLE_BERT_BM25,
-                                        MIN_ALL_WITH_ANSWER_TRAIN+"_bertbm25oracle_r6_3para",
-                                        3, dataset, rouge_threshold=0.6)
-    min_with_answer_train.find_and_convert(just_book=False, train_dev_test="train")
-    print("Created", MIN_ALL_WITH_ANSWER_TRAIN+"_bertbm25oracle_r6_3para")
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
