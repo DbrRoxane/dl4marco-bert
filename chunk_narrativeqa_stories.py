@@ -8,10 +8,7 @@ import nltk
 CHUNK_SIZE = 1500
 NQA_DIR = "./data/narrativeqa/"
 
-def chunk_story(story_str, chunk_size):
-    return textwrap.wrap(re.sub('\s+', ' ',story_str), chunk_size)
-
-def show_chunks_size(stories):
+def draw_chunks_stats(stories):
     nb_chunks = []
     size_chunks_char = []
     size_chunks_tokens = []
@@ -30,28 +27,15 @@ def show_chunks_size(stories):
     binss = [range(0,800, 50), range(1000,3002, 100), range(200,502, 50)]
     colors = ['green', 'orange', 'blue']
 
-    fig, a = plt.subplots(3,1)
+    fig, a = plt.subplots(3, 1)
     a = a.ravel()
-    for idx,ax in enumerate(a):
+    for idx, ax in enumerate(a):
         ax.hist(datas[idx], bins=binss[idx], color=colors[idx])
         ax.set_xlabel(xlabels[idx])
         ax.set_ylim(ylims[idx])
     plt.tight_layout()
 
-    #ax1 = fig.add_subplot(311)
-    #ax1.hist(nb_chunks, bins=10, color='green')
-    #ax1.set(xlabel="Number of chunks per story")
-
-    #ax2 = fig.add_subplot(312)
-    #ax2.hist(size_chunks_char, bins=list(range(1,3502, 500)), color='orange')
-    #ax2.set(xlabel="Number of characters per chunk", ylim=(0,250000))
-
-    #ax3 = fig.add_subplot(313)
-    #ax3.hist(size_chunks_tokens, bins=list(range(1,502, 100)), color='blue')
-    #ax3.set(xlabel="Number of tokens per chunk", ylim=(0,250000))
-
     plt.savefig("./stat_chunks.png")
-
 
 def chunk_story_paragraphs(story_id, data_dir):
     story_file = NQA_DIR + "tmp/" + story_id + ".content"
@@ -68,8 +52,6 @@ def chunk_story_paragraphs(story_id, data_dir):
             else:
                 chunk = re.sub('\s+', ' ',paragraph).replace('\0', '')
                 chunks.append(chunk)
-    #chunks =  [re.sub('\s+', ' ',paragraph).replace('\0', '')
-    #           for paragraph in story_str.split("\n\n")]
     return chunks
 
 def gather_paragraphs(paragraphs):
@@ -79,7 +61,6 @@ def gather_paragraphs(paragraphs):
         chunk += " " + paragraph + " "
         if len(chunk) >= CHUNK_SIZE:
             chunks.append(chunk)
-            #print(len(chunk))
             chunk = ""
     chunks.append(chunk)
     return chunks
@@ -94,7 +75,6 @@ def preprocess_html(story_str):
 def is_html(data_dir, story_id):
     with open(data_dir+"documents.csv", "r") as f:
         csv_reader = csv.reader(f, delimiter=',')
-        #html = [print("html" in row[3]) for row in csv_reader if len(row)==10 and row[0]==story_id][0]
         html = ["html" in row[3] for row in csv_reader if len(row)==10 and row[0]==story_id][0]
     return html
 

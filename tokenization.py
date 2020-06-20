@@ -21,42 +21,6 @@ from __future__ import print_function
 import collections
 import unicodedata
 import six
-import tensorflow as tf
-
-
-def convert_to_bert_input(text, max_seq_length, tokenizer, add_cls):
-
-  tokens = tokenizer.tokenize(text)
-
-  # Account for [CLS] and [SEP] with "- 2"
-  if len(tokens) > max_seq_length - 2:
-    tokens = tokens[:max_seq_length - 2]
-
-  # The convention in BERT is:
-  # (a) For sequence pairs:
-  #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
-  #  type_ids: 0   0  0    0    0     0       0 0    1  1  1  1   1 1
-  # (b) For single sequences:
-  #  tokens:   [CLS] the dog is hairy . [SEP]
-  #  type_ids: 0   0   0   0  0     0 0
-  #
-  # Where "type_ids" are used to indicate whether this is the first
-  # sequence or the second sequence. The embedding vectors for `type=0` and
-  # `type=1` were learned during pre-training and are added to the wordpiece
-  # embedding vector (and position vector). This is not *strictly* necessary
-  # since the [SEP] token unambigiously separates the sequences, but it makes
-  # it easier for the model to learn the concept of sequences.
-  #
-  # For classification tasks, the first vector (corresponding to [CLS]) is
-  # used as as the "sentence vector". Note that this only makes sense because
-  # the entire model is fine-tuned.
-  if add_cls:
-    tokens = ["[CLS]"] + tokens
-  tokens += ["[SEP]"]
-
-  input_ids = tokenizer.convert_tokens_to_ids(tokens)
-
-  return input_ids
 
 
 def convert_to_unicode(text):
@@ -106,7 +70,7 @@ def load_vocab(vocab_file):
   """Loads a vocabulary file into a dictionary."""
   vocab = collections.OrderedDict()
   index = 0
-  with tf.gfile.GFile(vocab_file, "r") as reader:
+  with open(vocab_file, "r") as reader:
     while True:
       token = convert_to_unicode(reader.readline())
       if not token:
@@ -119,7 +83,10 @@ def load_vocab(vocab_file):
 
 def convert_tokens_to_ids(vocab, tokens):
   """Converts a sequence of tokens into ids using the vocab."""
-  return [vocab[token] for token in tokens]
+  ids = []
+  for token in tokens:
+    ids.append(vocab[token])
+  return ids
 
 
 def whitespace_tokenize(text):
@@ -139,12 +106,18 @@ class FullTokenizer(object):
     self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
     self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
 
-  def tokenize(self, text):
-    return [
-        sub_token
-        for token in self.basic_tokenizer.tokenize(text)
-        for sub_token in self.wordpiece_tokenizer.tokenize(token)
-    ]
+  def tokenize(self, text, basic_done=False):
+    split_tokens = []
+    if basic_done:
+        assert type(text)==list
+    else:
+        text = self.basic_tokenizer.tokenize(text)
+
+    for token in text:
+      for sub_token in self.wordpiece_tokenizer.tokenize(token):
+        split_tokens.append(sub_token)
+
+    return split_tokens
 
   def convert_tokens_to_ids(self, tokens):
     return convert_tokens_to_ids(self.vocab, tokens)
