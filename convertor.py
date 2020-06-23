@@ -137,7 +137,7 @@ def merge_ranks(ranking_dic):
     for query_id, ranks in ranking_dic.items():
         merged_list = [par for groupped_rank in zip(*list(ranks.values()))
                        for par in groupped_rank]
-        merged_list = list(dict.fromkeys(merged_list))
+        merged_list = list(set(merged_list))
         rank_merged[query_id] = merged_list
     return rank_merged
 
