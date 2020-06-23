@@ -118,17 +118,39 @@ def convert_docs_in_dic(file_name):
                     'answer2' : answer2}
     return dataset
 
+def convert_rank_in_dic(ranking_files, max_rank=3):
+    ranking_dic = dict()
+    for ranking_filename in ranking_files:
+        with open(ranking_filename, 'r') as ranking_file:
+            ranking_reader = csv.reader(ranking_file, delimiter="\t")
+            for row in ranking_reader:
+                if row[0] not in ranking_dic.keys():
+                    ranking_dic[row[0]] = {}
+                if ranking_filename not in ranking_dic[row[0]].keys():
+                    ranking_dic[row[0]][ranking_filename] = []
+                if eval(row[2]) < max_rank:
+                    ranking_dic[row[0]][ranking_filename].append(row[1])
+    return ranking_dic
+
+def merge_ranks(ranking_dic):
+    rank_merged = dict()
+    for query_id, ranks in ranking_dic.items():
+        merged_list = [par for groupped_rank in zip(*list(ranks.values()))
+                       for par in groupped_rank]
+        merged_list = list(dict.fromkeys(merged_list))
+        rank_merged[query_id] = merged_list
+    return rank_merged
+
 
 class Convertor(object):
     """
     Convert best ranked paragraph to narrativeQA over summaries format
     Convertor is an abstract class of specific convertor for given format
     """
-    def __init__(self, ranking_filenames, converted_filename, n, dataset):
-        self.ranking_filenames = ranking_filenames
+    def __init__(self, converted_filename, dataset, ranking_dic=None):
         self.converted_filename = converted_filename
-        self.n = n
         self.dataset = dataset
+        self.ranking_dic = ranking_dic
         self.tokenizer = tokenization.BasicTokenizer()
 
     def find_and_convert(self, just_book, train_dev_test):
@@ -138,39 +160,25 @@ class Convertor(object):
 
         entries = {}
         converted_file = self.open_file()
-        for ranking_filename in self.ranking_filenames:
-            with open(ranking_filename, 'r') as ranking_file:
-                ranking_reader = csv.reader(ranking_file, delimiter="\t")
-                for row in ranking_reader:
-                    if len(row)==3 and eval(row[2]) in range(1, self.n+1):
-                        if eval(row[2]) == 1:
-                            query_id = row[0]
-                            story_id, _ = query_id.split("_")
-                            paragraphs_ids = list()
-                        #detect and ignore repeated paragraphs in ranking
-                        if row[1] in paragraphs_ids:
-                            print("twice the same parahraph", query_id, row[1])
-                        else:
-                            paragraphs_ids.append(row[1])
-                        select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
-                                just_book else True
-                        select_set = self.dataset[story_id]['set'] == train_dev_test
 
-                        if eval(row[2]) == self.n and select_book and select_set : # and \
-#                           len(set(paragraphs_ids)) == self.n:
-                            context, query, answer1, answer2 = \
-                                    self.extract_query_details(
-                                        story_id, query_id, paragraphs_ids)
-                            if context:
-                                entry = {'query_id':query_id,
-                                         'story_id':story_id,
-                                         'paragraphs_id':paragraphs_ids,
-                                         'query':query,
-                                         'context':context,
-                                         'answer1':answer1,
-                                         'answer2':answer2}
-                                self.write_to_converted_file(converted_file, entry)
-        self.close_file(converted_file)
+        for query_id, paragraph_list in self.ranking_dic.items():
+            paragraphs_ids = paragraph_list
+            story_id, _ = query_id.split("_")
+            select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
+                    just_book else True
+            select_set = self.dataset[story_id]['set'] == train_dev_test
+            context, query, answer1, answer2 = self.extract_query_details(
+                story_id, query_id, paragraphs_ids)
+            if context:
+                entry = {'query_id':query_id,
+                         'story_id':story_id,
+                         'paragraphs_id':paragraphs_ids,
+                         'query':query,
+                         'context':context,
+                         'answer1':answer1,
+                         'answer2':answer2}
+                self.write_to_converted_file(converted_file, entry)
+            self.close_file(converted_file)
 
     def find_and_convert_from_summaries(self, train_dev_test):
         converted_file = self.open_file()
@@ -211,8 +219,8 @@ class Convertor(object):
 
 
 class BauerConvertor(Convertor):
-    def __init__(self, ranking_filename, converted_filename, n, dataset):
-        super().__init__(ranking_filename, converted_filename, n, dataset)
+    def __init__(self, converted_filename, dataset, ranking_dic):
+        super().__init__(converted_filename, dataset, ranking_dic)
 
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
@@ -230,45 +238,30 @@ class BauerConvertor(Convertor):
 
 
 class MinConvertor(Convertor):
-    def __init__(self, ranking_filename, converted_filename, n, dataset, rouge_threshold):
+    def __init__(self, converted_filename, dataset, ranking_dic=None, rouge_threshold=0.5):
 
-        super().__init__(ranking_filename, converted_filename, n, dataset)
+        super().__init__(converted_filename, dataset, ranking_dic)
         self.rouge_threshold = rouge_threshold
-        self.already_exists = {}
+
     def open_file(self):
         return jsonlines.open(self.converted_filename, mode="w")
 
     def write_to_converted_file(self, converted_file, entry):
-        if entry['query_id'] not in self.already_exists.keys():
-            self.already_exists[entry['query_id']] = {
-                'query':entry['query'],
-                'final_answers':[entry['answer1'], entry['answer2']],
-                'context':list(),
-                'answers':list()}
         paragraphs = entry['context'].split("\n")
-        new_paragraphs = [paragraph for paragraph in paragraphs \
-                         if paragraph not in self.already_exists[
-                             entry['query_id']]['context']]
-        for paragraph in new_paragraphs:
-            p_tokenized = self.tokenizer.tokenize(paragraph.replace('.',''))
-            #remove point because generate errors because of rouge code
-            answer_dic = self.find_likely_answer(p_tokenized,
-                                                 entry['answer1'],
-                                                 entry['answer2'])
-            if answer_dic != []:
-                answer_text = answer_dic[0]['text']
-                self.already_exists[entry['query_id']]['final_answers'].append(answer_text)
-            self.already_exists[entry['query_id']]['context'].append(p_tokenized)
-            self.already_exists[entry['query_id']]['answers'].append(answer_dic)
+        paragraphs_tokenized = [self.tokenizer.tokenize(paragraph.replace('.',''))
+                                for paragraph in paragraphs]
+        answers = [self.find_likely_answer(p_tokenized,
+                                           entry['answer1'],
+                                           entry['answer2']) \
+                   for p_tokenized in paragraphs_tokenized]
+        converted_file.write({'id'       : entry['query_id'],
+                              'question' : entry['query'],
+                              'context'  : paragraphs_tokenized,
+                              'answers'  : answers,
+                              'final_answers' : [entry['answer1'],
+                                                 entry['answer2']]})
 
     def close_file(self, converted_file):
-        for k,v in self.already_exists.items():
-            converted_file.write({'id':k,
-                                  'question' :v['query'],
-                                  'context':v['context'],
-                                  'answers':v['answers'],
-                                  'final_answers':v['final_answers']})
-
         converted_file.close()
 
     def match_first_span(self, paragraph, subtext):
@@ -279,9 +272,6 @@ class MinConvertor(Convertor):
         for i in start_index:
             if paragraph[i:i+size_ngram] == subtext:
                 return i, i+size_ngram-1
-        print(paragraph)
-        print(subtext)
-        print(start_index)
         return None, None
 
     def find_likely_answer(self, paragraph, answer1, answer2, max_n=20):
@@ -299,7 +289,6 @@ class MinConvertor(Convertor):
         i = max_n
         test="no"
         while i > 0 :
-        #for i in reversed(range(1, max_n+1)):
             n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
             scores = [score['rouge-l']['f']
                       for score in rouge.get_scores(n_grams, [answer1]*len(n_grams))]
@@ -336,14 +325,13 @@ class MinConvertor(Convertor):
             if index_start:
                 answers.append({'text':" ".join(subtext), 'word_start':index_start, 'word_end':index_end})
 
-        print(answers)
         return answers
 
 
 
 class AnnotationConvertor(Convertor):
-    def __init__(self, ranking_filename, converted_filename, n, dataset):
-        super().__init__(ranking_filename, converted_filename, n, dataset)
+    def __init__(self, converted_filename, dataset, ranking_dic):
+        super().__init__(converted_filename, dataset, ranking_dic)
         self.already_writen = {}
 
     def open_file(self):
@@ -371,8 +359,8 @@ class AnnotationConvertor(Convertor):
         converted_file.close()
 def main():
 
-    dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
-    print("Created dataset")
+    #dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
+    #print("Created dataset")
 
     ALL_RANKING_FILE = RANKING_BERT_WITH_ANSWER +\
             [RANKING_BM25, RANKING_TFIDF] +\
@@ -381,6 +369,8 @@ def main():
     ORACLE_BERT_BM25 = RANKING_BERT_WITH_ANSWER + [RANKING_BM25]
 
     BERT_BM25_WITHOUT = RANKING_BERT_WITHOUT_ANSWER + [RANKING_BM25_without]
+
+
 
     #====== MIN SUM ALL ANSWERS ======
 
@@ -426,18 +416,25 @@ def main():
 
 
     #====== MIN WITHOUT ANSWER BERT =======
+    
+    bertbm25_naive_20each = merge_ranks(convert_rank_in_dic(BERT_BM25_WITHOUT, 20))
+    print("Created rankind dic")
 
-    min_with_answer_test = MinConvertor(BERT_BM25_WITHOUT,
-                                         MIN_ALL_WITHOUT_ANSWER_TEST+"_bertbm25_r6_20para_preprocessed2",
-                                         20, dataset, rouge_threshold=0.6)
+    dataset = convert_docs_in_dic(BOOK_EVAL_FILE)
+    print("Created dataset")
+
+
+    min_with_answer_test = MinConvertor(MIN_ALL_WITHOUT_ANSWER_TEST+"_bertbm25_r6_20sorted_preprocessed2",
+                                        dataset, ranking_dic=bertbm25_naive_20each,
+                                        rouge_threshold=0.6)
     min_with_answer_test.find_and_convert(just_book=False, train_dev_test="test")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_bert_r6_20para_preprocessed2")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_TEST+"_bertbm25_r6_20sorted_preprocessed2")
 
-    min_with_answer_dev = MinConvertor(RANKING_BERT_WITHOUT_ANSWER,
-                                         MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_r6_20para_preprocessed2",
-                                         20, dataset, rouge_threshold=0.6)
+    min_with_answer_dev = MinConvertor(MIN_ALL_WITHOUT_ANSWER_DEV+"_bertbm25_r6_20sorted_preprocessed2",
+                                      dataset, ranking_dic=bertbm25_naive_20each,
+                                      rouge_threshold=0.6)
     min_with_answer_dev.find_and_convert(just_book=False, train_dev_test="valid")
-    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV+"_bert_r6_20para_preprocessed2")
+    print("Created", MIN_ALL_WITHOUT_ANSWER_DEV+"_bertbm25_r6_20sorted_preprocessed2")
 
 
     #min_with_answer_train = MinConvertor(RANKING_BERT_WITH_ANSWER,
