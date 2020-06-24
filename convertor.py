@@ -158,16 +158,13 @@ class Convertor(object):
         Retrieve the n best paragraphs in a story based on a question
         """
 
-        entries = {}
         converted_file = self.open_file()
-
-        for query_id, paragraph_list in self.ranking_dic.items():
-            paragraphs_ids = paragraph_list
+        for query_id, paragraphs_ids in self.ranking_dic.items():
             story_id, _ = query_id.split("_")
             select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
                     just_book else True
             select_set = self.dataset[story_id]['set'] == train_dev_test
-            if select_book and select_set :
+            if select_book and select_set:
                 context, query, answer1, answer2 = self.extract_query_details(
                     story_id, query_id, paragraphs_ids)
                 entry = {'query_id':query_id,
@@ -247,22 +244,22 @@ class MinConvertor(Convertor):
 
     def write_to_converted_file(self, converted_file, entry):
         paragraphs = entry['context'].split("\n")
-        paragraphs_tokenized = [self.tokenizer.tokenize(paragraph.replace('.',''))
+        paragraphs_tokenized = [self.tokenizer.tokenize(paragraph.replace('.', ''))
                                 for paragraph in paragraphs]
         answers = [self.find_likely_answer(p_tokenized,
                                            entry['answer1'],
                                            entry['answer2']) \
                    for p_tokenized in paragraphs_tokenized]
-        final_answers = [answer['text'] for paragraph in paragraphs
-                         for answer in paragraph]
+        print(answers)
+        final_answers = [answer['text'] for paragraph in answers
+                         for answer in paragraph if answer != []]
         final_answers =  [entry['answer1'], entry['answer2']] + final_answers
         print(final_answers)
         converted_file.write({'id'       : entry['query_id'],
                               'question' : entry['query'],
                               'context'  : paragraphs_tokenized,
                               'answers'  : answers,
-                              'final_answers' : [entry['answer1'],
-                                                 entry['answer2']]})
+                              'final_answers' : final_answers})
 
     def close_file(self, converted_file):
         converted_file.close()
@@ -283,15 +280,14 @@ class MinConvertor(Convertor):
         max_n is the biggest n-gram analyzed
         """
 
-        previous_max_score = 0
+        previous_max_score, max_score = 0, 0
         masked_paragraph = paragraph.copy()
         subtext = paragraph.copy()
         rouge = rouge_score.Rouge()
         max_n = min(max_n, len(paragraph))
         answers = []
         i = max_n
-        test="no"
-        while i > 0 :
+        while i > 0:
             n_grams = [" ".join(n_gram) for n_gram in nltk.ngrams(subtext, i)]
             scores = [score['rouge-l']['f']
                       for score in rouge.get_scores(n_grams, [answer1]*len(n_grams))]
