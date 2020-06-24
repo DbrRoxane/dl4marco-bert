@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import nltk
 
 CHUNK_SIZE = 1500
-NQA_DIR = "./data/narrativeqa/"
+NQA_DIR = "./data/processed/"
 
 def draw_chunks_stats(stories):
     nb_chunks = []
@@ -85,7 +85,7 @@ def is_book(data_dir, story_id):
         book = [row[2]=="gutenberg" for row in csv_reader if row[0]==story_id][0]
     return book
 
-def extract_data_entries(data_dir, gather_char_min):
+def extract_data_entries(data_dir, gather_char_min, show_graphic=False):
     entries = list()
     with open(data_dir+"qaps.csv", "r") as qa_file:
         csv_reader = csv.reader(qa_file, delimiter=',')
@@ -109,15 +109,16 @@ def extract_data_entries(data_dir, gather_char_min):
                     'passage':"({}) - {}".format(cnt, chunk),
                     'answer1':answer_1,
                     'answer2':answer_2})
-    show_chunks_size(stories_chunked)
+    if show_graphic:
+        show_chunks_size(stories_chunked)
     return entries
 
 if __name__=="__main__":
     print("Start processing data")
     entries = extract_data_entries(NQA_DIR, gather_char_min=True)
-    #fieldnames = entries[0].keys()
-    #print("Finished processing. Now write data in {}narrativeqa_all.eval".format(NQA_DIR))
-    #with open(NQA_DIR+"narrativeqa_all.eval", "w", newline='') as writer:
-    #    dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
-    #    dict_writer.writerows(entries)
+    fieldnames = entries[0].keys()
+    print("Finished processing. Now write data in {}narrativeqa_all.eval".format(NQA_DIR))
+    with open(NQA_DIR+"narrativeqa_all.eval", "w", newline='') as writer:
+        dict_writer = csv.DictWriter(writer, fieldnames=fieldnames, delimiter='\t')
+        dict_writer.writerows(entries)
 

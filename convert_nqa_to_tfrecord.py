@@ -17,37 +17,18 @@ FLAGS = flags.FLAGS
 
 
 flags.DEFINE_string(
-    "output_folder", "./data/narrativeqa/nqa_tf_with_answer_24avril",
+    "output_folder", "./data/processed",
     "Folder where the tfrecord files will be written.")
 
 flags.DEFINE_string(
     "vocab_file",
     "./BERT_LARGE_MSMARCO/vocab.txt",
     "The vocabulary file that the BERT model was trained on.")
-
-flags.DEFINE_string(
-    "train_dataset_path",
-    "./data/triples.train.small.tsv",
-    "Path to the MSMARCO training dataset containing the tab separated "
-    "<query, positive_paragraph, negative_paragraph> tuples.")
-
-flags.DEFINE_string(
-    "dev_dataset_path",
-    "./data/top1000.dev.tsv",
-    "Path to the MSMARCO training dataset containing the tab separated "
-    "<query, positive_paragraph, negative_paragraph> tuples.")
-
 flags.DEFINE_string(
     "eval_dataset_path",
-    "./data/narrativeqa/narrativeqa_all.eval",
+    "./data/processed/narrativeqa_all.eval",
     "Path to the MSMARCO eval dataset containing the tab separated "
     "<query, positive_paragraph, negative_paragraph> tuples.")
-
-flags.DEFINE_string(
-    "dev_qrels_path",
-    "./data/qrels.dev.tsv",
-    "Path to the query_id relevant doc ids mapping.")
-
 flags.DEFINE_integer(
     "max_seq_length", 512,
     "The maximum total input sequence length after WordPiece tokenization. "
@@ -67,6 +48,9 @@ flags.DEFINE_integer(
     "num_examples_per_tf", 1000000,
     "The number of examples, which can be divided by 500, to split")
 
+flags.DEFINE_boolean(
+    "use_answer", False,
+    "Either to use the answer and so have an oracle model for ranking or not")
 
 def write_to_tf_record(writer, tokenizer, query, docs, labels,
                        ids_file=None, query_id=None, doc_ids=None):
@@ -122,7 +106,7 @@ def convert_eval_dataset(set_name, tokenizer, use_answer):
   query_ids = {}
   with open(dataset_path, 'r') as f:
     for i, line in enumerate(f):
-      if i%FLAGS.num_examples_per_tf == 0 and i > 0:
+      if i % FLAGS.num_examples_per_tf == 0 and i > 0:
         processed_dataset = queries_docs.copy()
         queries_docs = collections.defaultdict(list)
         queries_docs[query] = processed_dataset[query].copy()
@@ -186,38 +170,6 @@ def convert_eval_dataset(set_name, tokenizer, use_answer):
     writer.close()
 
 
-def convert_train_dataset(tokenizer):
-  print('Converting to Train to tfrecord...')
-
-  start_time = time.time()
-
-  print('Counting number of examples...')
-  num_lines = sum(1 for line in open(FLAGS.train_dataset_path, 'r'))
-  print('{} examples found.'.format(num_lines))
-  writer = tf.python_io.TFRecordWriter(
-      FLAGS.output_folder + '/dataset_train.tf')
-
-  with open(FLAGS.train_dataset_path, 'r') as f:
-    for i, line in enumerate(f):
-      if i % 1000 == 0:
-        time_passed = int(time.time() - start_time)
-        print('Processed training set, line {} of {} in {} sec'.format(
-            i, num_lines, time_passed))
-        hours_remaining = (num_lines - i) * time_passed / (max(1.0, i) * 3600)
-        print('Estimated hours remaining to write the training set: {}'.format(
-            hours_remaining))
-
-      query, positive_doc, negative_doc = line.rstrip().split('\t')
-
-      write_to_tf_record(writer=writer,
-                         tokenizer=tokenizer,
-                         query=query, 
-                         docs=[positive_doc, negative_doc], 
-                         labels=[1, 0])
-
-  writer.close()
-
-
 def main():
 
   print('Loading Tokenizer...')
@@ -227,7 +179,9 @@ def main():
   if not os.path.exists(FLAGS.output_folder):
     os.mkdir(FLAGS.output_folder)
 
-  convert_eval_dataset(set_name='eval', tokenizer=tokenizer, use_answer=True)
+  convert_eval_dataset(set_name='eval',
+                       tokenizer=tokenizer,
+                       use_answer=FLAGS.use_answer)
   print('Done!')
 
 if __name__ == '__main__':
