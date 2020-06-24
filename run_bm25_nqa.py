@@ -11,8 +11,8 @@ from convertor import convert_docs_in_dic
 
 csv.field_size_limit(sys.maxsize)
 
-BM25_FILE = "./data/output/bm25/bm25_predictions_without_answer.tsv"
-BOOK_EVAL_FILE = "./data/narrativeqa/narrativeqa_all.eval"
+BM25_FILE = "./data/output/bm25_predictions_without_answer.tsv"
+BOOK_EVAL_FILE = "./data/processed/narrativeqa_all.eval"
 
 def compute_bm25(tokenized_query, story_id, paragraphs, n):
     tokenized_paragraphs = [paragraph.split(" ") \
