@@ -167,9 +167,9 @@ class Convertor(object):
             select_book = self.dataset[story_id]['kind'] == 'gutenberg' if \
                     just_book else True
             select_set = self.dataset[story_id]['set'] == train_dev_test
-            context, query, answer1, answer2 = self.extract_query_details(
-                story_id, query_id, paragraphs_ids)
-            if context:
+            if select_book and select_set :
+                context, query, answer1, answer2 = self.extract_query_details(
+                    story_id, query_id, paragraphs_ids)
                 entry = {'query_id':query_id,
                          'story_id':story_id,
                          'paragraphs_id':paragraphs_ids,
@@ -178,7 +178,7 @@ class Convertor(object):
                          'answer1':answer1,
                          'answer2':answer2}
                 self.write_to_converted_file(converted_file, entry)
-            self.close_file(converted_file)
+        self.close_file(converted_file)
 
     def find_and_convert_from_summaries(self, train_dev_test):
         converted_file = self.open_file()
@@ -205,15 +205,14 @@ class Convertor(object):
         pass
 
     def extract_query_details(self, story_id, query_id, paragraphs_id):
-        context = [paragraph_str
-                   for paragraph_id, paragraph_str in \
-                        self.dataset[story_id]['paragraphs'].items() \
-                   if paragraph_id in paragraphs_id]
-        if len(context) != len(paragraphs_id):
-            print("cannot retrieve passages", len(paragraphs_id), len(context), paragraphs_id)
-            context = ""
-        else:
-            context = "\n".join(context)
+        context = ""
+        for p_id in paragraphs_id:
+            p_str = self.dataset[story_id]['paragraphs'].get(p_id, "")
+            context += p_str + "\n" if p_str != "" else p_str
+            if p_str == "":
+                print("Cannot retrieve paragraph {}".format(p_id))
+                print("All the p_id are {} \n \n".
+                      format(self.dataset[story_id]['paragraphs'].keys()))
         query, answer1, answer2 = self.dataset[story_id]['queries'][query_id].values()
         return context, query, answer1, answer2
 
@@ -254,6 +253,10 @@ class MinConvertor(Convertor):
                                            entry['answer1'],
                                            entry['answer2']) \
                    for p_tokenized in paragraphs_tokenized]
+        final_answers = [answer['text'] for paragraph in paragraphs
+                         for answer in paragraph]
+        final_answers =  [entry['answer1'], entry['answer2']] + final_answers
+        print(final_answers)
         converted_file.write({'id'       : entry['query_id'],
                               'question' : entry['query'],
                               'context'  : paragraphs_tokenized,
